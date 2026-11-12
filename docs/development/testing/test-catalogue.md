@@ -1,4 +1,14 @@
 
+## 12 November 2026 — News layer hint FAIL; DOM-copy reveal pending Pi
+
+**Runtime at `7b58177c`:** matching 03:18:15 recording (**60.97s; nominal 240fps capture**) and 03:19:39 output, WebKitGTK **2.54.0**. Six routes/native transitions and all covered preparations complete without rejection/reload or retained guards. News layer flag and identity transform applied, yet operator/video still show faulty fills/outlines during reveal. Hydrated card/heading/summary boxes are unchanged during/after and on both visits; all three sampled summaries end 11px inside their cards. Reject the layer hint; this evidence supports a capture/painting comparison, not a layout redesign or a precise engine diagnosis. Implementation CI: **1665 tests, 3 skips PASS**.
+
+**Staged:** `--news-live-cover-trial` requires covered Cover readiness and excludes `--news-layer-trial`. News entry bypasses native snapshots: source copy covers one commit/readiness wait, then two stationary, full-size DOM copies are revealed through animated width masks. Scroll offsets preserved; real main stays mounted; final underlying mask styles prevent cancellation reverting to an initial frame. Real News paints under the complete incoming copy before cleanup. Other entries keep native covered staging; normal/animate:false paths bypass the new renderer. No card-design or backend changes.
+
+**Executed locally:** **30 host + 35 probe PASS**. `tests/js/surface-content-ready.test.cjs` executes **27 cases**, including nine new copy-renderer/real-host scope, geometry/scroll, busy/cleanup, failure, cancellation and zero/reduced-motion cases. Eight Cover-profile cases include passive copy-state telemetry. Changed Python/JS syntax, five injected scripts and **14 documentation checks PASS**; no pixel acceptance is inferred.
+
+**Focused Pi procedure:** pull/restart ACP once for asset versions; runtime only, no repeated Python suites. Same six-route forced-SHM Cover/readiness session with new flag, failed layer flag omitted. Expect **6 changed/settled**, **4 native started/ready/finished**, **4 native covered preparations**, **2 News copy reveals**, final released and zero guards/masks. Compare News fills/borders/summaries and single handoff on first/repeated entry, Weather/Clock continuity, pill close and stutter. Actual video decides acceptance; News visual/performance, native-shell ownership and B4.4 remain open.
+
 ## 12 November 2026 — Covered handoff bounded PASS; News rendering comparison staged
 
 **Runtime evidence at `cb15f0f5`:** matching 00:54:07 video (55.78s) and 00:55:16 output. Six routes/native transitions complete, guards applied six times and all released, no reload or native rejection; content waits 83–146ms and preparation 189–591ms. No repeated unit suites in this evidence; exact implementation CI **1665 tests, 3 skips PASS**. Operator/frame review accepts the corrected single page handoff within this preview. News still shows shortened card fills/borders, overflowing-looking summaries and duplicate outlines during first/repeated reveal; overall News visual acceptance remains open.
@@ -820,7 +830,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### ACP shell / navigation
 
 - `tests/test_acp_design_tokens.py` — Protects the #94 Phase A semantic design-token boundary, load order, palette derivation and first migrated shared/application-surface consumers.
-- `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces. Includes the optional Node-executed F10 row geometry/lifecycle cases in `tests/js/webkit-spatial-strip.test.cjs`; absence of Node is an explicit skip, not visual acceptance. Includes optional Node-executed snapshot-content readiness cases in `tests/js/surface-content-ready.test.cjs`.
+- `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces. Includes the optional Node-executed F10 row geometry/lifecycle cases in `tests/js/webkit-spatial-strip.test.cjs`; absence of Node is an explicit skip, not visual acceptance. Includes optional Node-executed content readiness, covered native staging and News DOM-copy reveal/cleanup cases in `tests/js/surface-content-ready.test.cjs`.
 
 - `tests/test_os_keyboard_choice.py` — Protects the five-minute browser-session native OSK trial switch, original input hint restoration, Advanced UI wiring and non-regression of the accepted ACP HTML keyboard.
 

@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 const read = (name) => fs.readFileSync(path.join(__dirname, '../../app/static/js', name), 'utf8');
 const source = read('acp-application-surfaces.js');
-const preparation = source.slice(source.indexOf('  async function stagePreparedViewTransition('),
+const preparation = source.slice(source.indexOf('  function captureCoverScrollOffsets('),
   source.indexOf('  initialMount();'));
 const deferred = () => {
   let resolve, reject;
@@ -16,19 +16,47 @@ const deferred = () => {
 };
 const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
 
-function fixture({ enabled = true } = {}) {
+function fixture({ enabled = true, liveCover = false, duration = 2000 } = {}) {
   const calls = [], registry = new Map(), timers = new Map();
   const refresh = deferred(), forecast = deferred(), completion = deferred(), image = deferred();
   let now = 0, timerId = 0;
   const logo = { hidden: false, decode: () => { calls.push('decode'); return image.promise; } };
   const page = { dataset: { acpForecastSettled: 'true' } };
   const wrapper = { querySelector: (selector) => selector === '[data-news-logo]' ? logo : page };
-  const guards = [];
+  const guards = [], animations = [];
   const body = { children: [], appendChild(node) { this.children.push(node); } };
-  const screen = { style: { visibility: '' },
+  function element() {
+    const node = { children: [], style: { setProperty(key, value) { this[key] = value; } },
+      classList: { add() {} }, setAttribute() {},
+      appendChild(child) { this.children.push(child); child.parentNode = this; },
+      querySelectorAll: () => [], getBoundingClientRect: () => ({}),
+      animate(frames, timing) {
+        const done = deferred();
+        const animation = { frames, timing, finished: done.promise, resolve: done.resolve, reject: done.reject,
+          cancel() {
+            this.cancelled = true;
+            this.cancelWidth = node.style.width;
+            this.cancelVisibility = screen.style.visibility;
+            done.reject(new Error('animation cancelled'));
+          } };
+        animations.push(animation);
+        return animation;
+      },
+      remove() {
+        const children = this.parentNode?.children || body.children;
+        const index = children.indexOf(this);
+        if (index >= 0) children.splice(index, 1);
+      } };
+    return node;
+  }
+  const scroller = { scrollTop: 0, scrollLeft: 0 };
+  const screen = { style: { visibility: '' }, scrollTop: 0, scrollLeft: 0,
+    querySelectorAll: () => [scroller],
     getBoundingClientRect: () => { calls.push('layout'); return {}; } };
   const window = {
     __acpWebkitContentReadyTrial: enabled,
+    __acpWebkitNewsLiveCoverTrial: liveCover,
+    innerWidth: 853, innerHeight: 480,
     ACPWeatherSurface: { refresh: () => { calls.push('weather-refresh'); return refresh.promise; } },
     ACPNewsSurface: { refresh: () => { calls.push('news-refresh'); return refresh.promise; } },
     ACPWeatherForecast: { ready: forecast.promise },
@@ -39,21 +67,22 @@ function fixture({ enabled = true } = {}) {
   };
   const context = {
     window, performance: { now: () => now },
-    document: { body, dispatchEvent: (event) => calls.push(event.type) },
+    document: { body, createElement: element, timeline: { currentTime: 50 },
+      dispatchEvent: (event) => calls.push(event.type) },
     CustomEvent: class { constructor(type, { detail }) { this.type = type; this.detail = detail; } },
     surfaces: new Set(['clock', 'weather', 'news', 'settings', 'airplay']),
     surfaceHost: { register: (surface, lifecycle) => registry.set(surface, lifecycle) },
     screen,
-    cloneCurrentSpatialLayer: () => {
-      const node = { style: { setProperty() {} }, classList: { add() {} },
-        remove() {
-          const index = body.children.indexOf(node);
-          if (index >= 0) body.children.splice(index, 1);
-        } };
+    cloneCurrentSpatialLayer: (surface) => {
+      const node = element();
+      node.surface = surface;
+      node.scroller = { scrollTop: 0, scrollLeft: 0 };
+      node.querySelectorAll = () => [node.scroller];
       guards.push(node);
       return node;
     },
     nextFrame: async () => { calls.push('paint-frame'); },
+    applicationTransitionDurationMs: () => duration,
     commitSurface: () => { calls.push('commit'); },
     ensureMounted: async () => ({ wrapper, title: 'Page', scripts: ['page.js'] }),
     ensureScripts: async () => { calls.push('scripts'); },
@@ -62,7 +91,7 @@ function fixture({ enabled = true } = {}) {
   vm.createContext(context);
   vm.runInContext(preparation, context);
   return { window, registry, calls, timers, refresh, forecast, completion, image,
-    context, guards, body, screen,
+    context, guards, body, screen, scroller, animations,
     tick: (value) => { now = value; } };
 }
 
@@ -244,7 +273,7 @@ function installRealHost(f, { throwNative = false } = {}) {
 }
 
 test('the real host commits and hydrates behind the guard BEFORE native capture, exactly once', async () => {
-  const f = fixture();
+  const f = fixture({ liveCover: true });
   const native = installRealHost(f);
   const navigation = f.window.ACPSurfaceHost.navigate('weather', { history: false });
   await flush();
@@ -296,6 +325,163 @@ for (const failure of ['throw', 'reject-update']) {
     assert.equal(f.window.ACPSurfaceHost.isTransitioning(), false);
   });
 }
+
+test('live Cover hook is explicitly opt-in and restricted to News', async () => {
+  const normal = fixture();
+  assert.equal((await normal.registry.get('news').prepare()).coverCommit, undefined);
+  const trial = fixture({ liveCover: true });
+  for (const surface of ['clock', 'weather', 'airplay', 'settings']) {
+    assert.equal((await trial.registry.get(surface).prepare()).coverCommit, undefined);
+  }
+  assert.equal(typeof (await trial.registry.get('news').prepare()).coverCommit, 'function');
+  assert.equal(trial.body.children.length, 0, 'preparing the lifecycle alone adds no presentation');
+});
+
+test('News uses stationary full-size copies, preserves scroll and covers both async handoffs', async () => {
+  const f = fixture({ liveCover: true });
+  const parent = {};
+  f.screen.parentNode = parent;
+  f.scroller.scrollTop = 42; f.scroller.scrollLeft = 13;
+  const content = deferred();
+  const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+  let commits = 0;
+  const pending = prepared.coverCommit({ commit: async () => {
+    commits++;
+    assert.equal(f.body.children.length, 1);
+    assert.equal(f.screen.style.visibility, 'hidden');
+    await content.promise;
+    f.scroller.scrollTop = 180; f.scroller.scrollLeft = 0;
+  } });
+  await flush();
+  assert.equal(f.window.__acpWebkitNewsLiveCoverLast.phase, 'preparing');
+  assert.equal(f.animations.length, 0);
+  const oldMask = f.body.children[0];
+  assert.equal(oldMask.style.width, '853px');
+  assert.equal(oldMask.style.right, '0');
+  assert.equal(oldMask.style.overflow, 'hidden');
+  assert.equal(oldMask.inert, true);
+  assert.equal(f.guards[0].style.position, 'absolute');
+  assert.equal(f.guards[0].style.right, '0');
+  assert.equal(f.guards[0].scroller.scrollTop, 42);
+  assert.equal(f.guards[0].scroller.scrollLeft, 13);
+  content.resolve();
+  await flush();
+  assert.equal(f.animations.length, 2);
+  assert.equal(f.window.__acpWebkitNewsLiveCoverLast.phase, 'animating');
+  assert.equal(f.screen.style.visibility, 'hidden');
+  assert.equal(f.screen.parentNode, parent, 'the real main remains mounted');
+  assert.equal(f.guards[1].surface, 'news');
+  assert.equal(f.guards[1].style.left, '0');
+  assert.equal(f.guards[1].scroller.scrollTop, 180);
+  for (const copy of f.guards) {
+    assert.equal(copy.style.width, '853px');
+    assert.equal(copy.style.height, '480px');
+    assert.equal(copy.style.transform, undefined, 'no moving or scaling page');
+  }
+  assert.equal(f.body.children[1].style.left, '0');
+  for (const animation of f.animations) {
+    assert.equal(animation.timing.duration, 2000);
+    assert.equal(animation.startTime, 50, 'both masks share the document clock');
+    assert.equal(animation.frames[0].clipPath, undefined);
+    animation.resolve();
+  }
+  await pending;
+  assert.equal(commits, 1);
+  assert.equal(f.animations[0].cancelWidth, '0px');
+  assert.equal(f.animations[1].cancelWidth, '853px');
+  assert.ok(f.animations.every((animation) => animation.cancelVisibility === 'hidden'));
+  assert.equal(f.calls.filter((call) => call === 'paint-frame').length, 4);
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.screen.style.visibility, '');
+  assert.equal(f.screen.parentNode, parent);
+  assert.equal(f.window.__acpWebkitNewsLiveCoverLast.phase, 'released');
+});
+
+test('real host News entry bypasses native capture and stays busy until copy cleanup', async () => {
+  const f = fixture({ liveCover: true });
+  const native = installRealHost(f);
+  const pending = f.window.ACPSurfaceHost.navigate('news', { history: false });
+  f.refresh.resolve(true); f.image.resolve();
+  await flush();
+  assert.equal(native.nativeUpdate(), null);
+  assert.equal(f.window.__acpWebkitCoverStageApplied, undefined);
+  assert.equal(f.window.__acpWebkitNewsLiveCoverApplied, 1);
+  assert.equal(f.window.ACPSurfaceHost.isTransitioning(), true);
+  assert.equal(f.calls.includes('acp:surface-settled'), false);
+  f.animations.forEach((animation) => animation.resolve());
+  assert.equal((await pending).accepted, true);
+  assert.equal(f.calls.filter((call) => call === 'commit').length, 1);
+  assert.equal(f.calls.filter((call) => call === 'acp:surface-activated').length, 1);
+  assert.equal(f.calls.at(-1), 'acp:surface-settled');
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.window.ACPSurfaceHost.isTransitioning(), false);
+});
+
+test('real host animate:false News entry bypasses the copy renderer', async () => {
+  const f = fixture({ liveCover: true });
+  const native = installRealHost(f);
+  const pending = f.window.ACPSurfaceHost.navigate('news', { history: false, animate: false });
+  f.refresh.resolve(true); f.image.resolve();
+  assert.equal((await pending).accepted, true);
+  assert.equal(native.nativeUpdate(), null);
+  assert.equal(f.window.__acpWebkitNewsLiveCoverApplied, undefined);
+  assert.equal(f.guards.length, 0);
+  assert.equal(f.animations.length, 0);
+});
+
+for (const failure of ['commit', 'paint', 'second-animation']) {
+  test(`News copy failure restores visibility and removes all masks: ${failure}`, async () => {
+    const f = fixture({ liveCover: true });
+    f.screen.style.visibility = 'visible';
+    if (failure === 'paint') f.context.nextFrame = async () => { throw new Error('paint'); };
+    if (failure === 'second-animation') {
+      const create = f.context.document.createElement;
+      f.context.document.createElement = () => {
+        const mask = create();
+        const animate = mask.animate;
+        mask.animate = (...args) => {
+          if (f.animations.length) throw new Error('second-animation');
+          return animate(...args);
+        };
+        return mask;
+      };
+    }
+    const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+    await assert.rejects(prepared.coverCommit({ commit: async () => {
+      if (failure === 'commit') throw new Error('commit');
+    } }), new RegExp(failure));
+    assert.equal(f.screen.style.visibility, 'visible');
+    assert.equal(f.body.children.length, 0);
+    assert.ok(f.animations.every((animation) => animation.cancelled));
+    assert.equal(f.window.__acpWebkitNewsLiveCoverLast.phase, 'failed');
+  });
+}
+
+test('cancelled mask animations still hand off their final styles and clean up', async () => {
+  const f = fixture({ liveCover: true });
+  const prepared = await f.registry.get('news').prepare({ from: 'clock' });
+  const pending = prepared.coverCommit({ commit: async () => {} });
+  await flush();
+  f.animations.forEach((animation) => animation.reject(new Error('cancelled')));
+  await pending;
+  assert.equal(f.animations[1].cancelWidth, '853px');
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.screen.style.visibility, '');
+});
+
+test('zero duration and reduced motion release copies without starting animations', async () => {
+  for (const duration of [0, 2000]) {
+    const f = fixture({ liveCover: true, duration });
+    f.window.matchMedia = () => ({ matches: duration > 0 });
+    const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+    await prepared.coverCommit({ commit: async () => {} });
+    assert.equal(f.animations.length, 0);
+    assert.equal(f.body.children.length, 0);
+    assert.equal(f.screen.style.visibility, '');
+    assert.equal(f.window.__acpWebkitNewsLiveCoverLast.durationMs, 0);
+    assert.equal(f.window.__acpWebkitNewsLiveCoverLast.phase, 'released');
+  }
+});
 
 function moduleFixture(surface) {
   const requests = [], listeners = new Map();

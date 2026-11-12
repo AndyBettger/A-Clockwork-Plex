@@ -657,6 +657,135 @@
     }
   }
 
+  function captureCoverScrollOffsets() {
+    return [screen, ...screen.querySelectorAll('*')]
+      .map((node, index) => ({ index, top: node.scrollTop, left: node.scrollLeft }))
+      .filter(({ top, left }) => top || left);
+  }
+
+  function createCoverPresentation(surface, edge, width, height) {
+    const offsets = captureCoverScrollOffsets();
+    const layer = cloneCurrentSpatialLayer(surface);
+    // Keep the full-size page stationary inside a changing-width mask. A fixed
+    // clone would escape overflow clipping; an auto-width child would reflow.
+    const properties = {
+      position: 'absolute', inset: 'auto', top: '0', [edge]: '0',
+      width: `${width}px`, height: `${height}px`,
+      'will-change': 'auto', animation: 'none',
+    };
+    Object.entries(properties).forEach(([key, value]) => {
+      layer.style.setProperty(key, value, 'important');
+    });
+    const mask = document.createElement('div');
+    mask.className = 'acp-webkit-news-cover-viewport';
+    mask.setAttribute('aria-hidden', 'true');
+    mask.inert = true;
+    Object.assign(mask.style, {
+      position: 'fixed', top: '0', [edge]: '0', zIndex: '40',
+      width: `${width}px`, height: `${height}px`, overflow: 'hidden', pointerEvents: 'none',
+    });
+    mask.appendChild(layer);
+    return {
+      mask,
+      restoreScroll() {
+        // cloneNode does not copy scroll offsets. Apply them after insertion
+        // and layout, without scrolling or reparenting the actual live page.
+        layer.getBoundingClientRect();
+        const nodes = [layer, ...layer.querySelectorAll('*')];
+        offsets.forEach(({ index, top, left }) => {
+          if (nodes[index]) {
+            nodes[index].scrollTop = top;
+            nodes[index].scrollLeft = left;
+          }
+        });
+      },
+    };
+  }
+
+  async function newsLiveCoverCommit(from, commit) {
+    // Developer-only News comparison. Avoid native snapshots AND animated
+    // clip-paths while preserving the covered content preparation boundary.
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const duration = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      ? 0 : applicationTransitionDurationMs();
+    const previousVisibility = screen.style.visibility;
+    const started = performance.now();
+    const state = { from, phase: 'preparing', preparationMs: null, durationMs: duration };
+    window.__acpWebkitNewsLiveCoverLast = state;
+    window.__acpWebkitNewsLiveCoverApplied = (window.__acpWebkitNewsLiveCoverApplied || 0) + 1;
+    const masks = [];
+    const animations = [];
+    const cancelAnimations = () => {
+      animations.splice(0).forEach((animation) => animation.cancel());
+    };
+    try {
+      const outgoing = createCoverPresentation(from, 'right', width, height);
+      masks.push(outgoing.mask);
+      document.body.appendChild(outgoing.mask);
+      outgoing.restoreScroll();
+      screen.style.visibility = 'hidden';
+      await commit();
+
+      screen.style.visibility = previousVisibility;
+      screen.getBoundingClientRect();
+      await nextFrame();
+      await nextFrame();
+      const incoming = createCoverPresentation('news', 'left', width, height);
+      masks.push(incoming.mask);
+      incoming.mask.style.width = '0px';
+      document.body.appendChild(incoming.mask);
+      incoming.restoreScroll();
+      screen.style.visibility = 'hidden';
+      state.preparationMs = Math.round(performance.now() - started);
+      state.phase = 'animating';
+
+      const outgoingFrames = [
+        { width: `${width}px`, opacity: 1, borderRadius: '0px' },
+        { width: '0px', opacity: .15, borderRadius: '22px' },
+      ];
+      const incomingFrames = [
+        { width: '0px', opacity: .65, borderRadius: '22px' },
+        { width: `${width}px`, opacity: 1, borderRadius: '0px' },
+      ];
+      // Underlying styles are the FINAL state. Cancelling a filled animation
+      // must never uncover a clipped starting frame during the live handoff.
+      Object.assign(outgoing.mask.style, outgoingFrames[1]);
+      Object.assign(incoming.mask.style, incomingFrames[1]);
+      if (duration > 0) {
+        const timing = { duration, easing: 'cubic-bezier(.16, .84, .24, 1)', fill: 'both' };
+        const completions = [];
+        for (const [mask, frames] of [[outgoing.mask, outgoingFrames], [incoming.mask, incomingFrames]]) {
+          const animation = mask.animate(frames, timing);
+          animations.push(animation);
+          // Observe cancellation immediately, including when starting the
+          // second effect throws before we reach the combined completion wait.
+          completions.push(animation.finished.catch(() => undefined));
+        }
+        const startTime = document.timeline?.currentTime;
+        if (Number.isFinite(startTime)) {
+          animations.forEach((animation) => { animation.startTime = startTime; });
+        }
+        await Promise.all(completions);
+      }
+      cancelAnimations();
+      // Paint the real destination under the complete incoming presentation
+      // before retiring either copy. The original main.screen never moves.
+      screen.style.visibility = previousVisibility;
+      screen.getBoundingClientRect();
+      await nextFrame();
+      await nextFrame();
+      state.phase = 'released';
+    } catch (error) {
+      state.phase = 'failed';
+      throw error;
+    } finally {
+      cancelAnimations();
+      screen.style.visibility = previousVisibility;
+      masks.forEach((mask) => mask.remove());
+    }
+  }
+
   async function stagePreparedViewTransition(from, commit) {
     // Keep async page work OUTSIDE the native update callback. The Pi can
     // expose the new live page during that work, before its snapshot animates.
@@ -782,6 +911,9 @@
           async liveCommit({ commit } = {}) {
             await ordinaryLiveCommit(from, commit);
           },
+          ...(surface === 'news' && window.__acpWebkitNewsLiveCoverTrial === true
+            ? { coverCommit: ({ commit }) => newsLiveCoverCommit(from, commit) }
+            : {}),
           async stageViewTransition({ commit } = {}) {
             if (window.__acpWebkitContentReadyTrial !== true) return null;
             return stagePreparedViewTransition(from, commit);

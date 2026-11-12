@@ -143,6 +143,10 @@
           direction: spatialCommitDirection,
           commit,
         });
+      } else if (motionEnabled(options) && typeof prepared.coverCommit === 'function') {
+        // Optional prepared-page comparison: presentation copies below live
+        // shell chrome, without native View Transition snapshot capture.
+        await prepared.coverCommit({ host, surface, from, options, commit });
       } else if (nightLiveTransitionEnabled(options, prepared)) {
         // Chromium's named nav View Transition snapshot is painted above the
         // live astronomy overlay on the commissioned Pi. Keep shell chrome

@@ -453,7 +453,7 @@ COVER_REVEAL_TRIAL_SCRIPT = r"""
 
 
 def surface_transition_script(mode: str, content_ready: bool = False,
-                              news_layer: bool = False) -> str:
+                              news_layer: bool = False, news_live_cover: bool = False) -> str:
     """Build only allowlisted, ephemeral document-end probe scripts."""
     if mode not in ("spatial", "configured", "cover-reveal"):
         raise ValueError("unsupported surface transition mode")
@@ -461,12 +461,18 @@ def surface_transition_script(mode: str, content_ready: bool = False,
         raise ValueError("content readiness trial requires cover-reveal mode")
     if news_layer and not content_ready:
         raise ValueError("News layer trial requires covered content preparation")
+    if news_live_cover and not content_ready:
+        raise ValueError("News live Cover trial requires covered content preparation")
+    if news_layer and news_live_cover:
+        raise ValueError("News layer and live Cover trials are mutually exclusive")
     if mode == "cover-reveal":
         script = SURFACE_TRANSITION_TRIAL_SCRIPT + ";\n" + COVER_REVEAL_TRIAL_SCRIPT
         if content_ready:
             script += ";\nwindow.__acpWebkitContentReadyTrial = true;"
         if news_layer:
             script += ";\ndocument.documentElement.classList.add('acp-webkit-news-layer-trial');"
+        if news_live_cover:
+            script += ";\nwindow.__acpWebkitNewsLiveCoverTrial = true;"
         return script
     return SURFACE_TRANSITION_TRIAL_SCRIPT
 
@@ -503,6 +509,10 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    coverStage: window.__acpWebkitCoverStageLast || null,
    coverGuardCount: document.querySelectorAll('.acp-webkit-cover-staging-guard').length,
    newsLayerTrial: document.documentElement.classList.contains('acp-webkit-news-layer-trial'),
+   newsLiveCoverTrial: window.__acpWebkitNewsLiveCoverTrial === true,
+   newsLiveCoverApplied: window.__acpWebkitNewsLiveCoverApplied || 0,
+   newsLiveCover: window.__acpWebkitNewsLiveCoverLast || null,
+   newsCoverCount: document.querySelectorAll('.acp-webkit-news-cover-viewport').length,
    newsLayout: news ? {
      page: rect(news), transform: getComputedStyle(news).transform,
      rail: rect(news.querySelector('.news-rail')),
@@ -674,8 +684,12 @@ def parse_args(argv=None):
     parser.add_argument("--cover-content-ready-trial", action="store_true",
                         help="Prepare content behind the outgoing page before native snapshots; "
                              "only with the explicit Cover Reveal surface trial.")
-    parser.add_argument("--news-layer-trial", action="store_true",
+    news_trials = parser.add_mutually_exclusive_group()
+    news_trials.add_argument("--news-layer-trial", action="store_true",
                         help="Compare an independent News rendering layer; "
+                             "requires --cover-content-ready-trial.")
+    news_trials.add_argument("--news-live-cover-trial", action="store_true",
+                        help="Reveal prepared News copies through width masks instead of native snapshots; "
                              "requires --cover-content-ready-trial.")
     args = parser.parse_args(argv)
     if args.surface_transition_mode != "spatial" and not args.surface_transition_trial:
@@ -687,6 +701,8 @@ def parse_args(argv=None):
                      "and --surface-transition-mode cover-reveal")
     if args.news_layer_trial and not args.cover_content_ready_trial:
         parser.error("--news-layer-trial requires --cover-content-ready-trial")
+    if args.news_live_cover_trial and not args.cover_content_ready_trial:
+        parser.error("--news-live-cover-trial requires --cover-content-ready-trial")
     if not 10 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 10 and 300")
     if not 480 <= args.width <= 3840 or not 320 <= args.height <= 2160:
@@ -830,7 +846,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     if args.surface_transition_trial:
         injected = WebKit2.UserScript.new(
             surface_transition_script(args.surface_transition_mode, args.cover_content_ready_trial,
-                                      args.news_layer_trial),
+                                      args.news_layer_trial, args.news_live_cover_trial),
             WebKit2.UserContentInjectedFrames.TOP_FRAME,
             WebKit2.UserScriptInjectionTime.END, None, None)
         webview.get_user_content_manager().add_script(injected)
@@ -892,6 +908,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("coverStageApplied"), state.get("coverGuardCount"),
                     json.dumps(state.get("coverStage"), sort_keys=True),
                     state.get("newsLayerTrial"),
+                    state.get("newsLiveCoverTrial"), state.get("newsLiveCoverApplied"),
+                    state.get("newsCoverCount"),
+                    json.dumps(state.get("newsLiveCover"), sort_keys=True),
                     json.dumps(state.get("newsLayout"), sort_keys=True),
                     state.get("outgoingCloneCount"),
                     state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
@@ -1101,6 +1120,10 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
             print("ACP WebKit probe: News layer trial "
                   + ("ON (News identity 3D transform; check newsLayout geometry/transform)"
                      if args.news_layer_trial else "OFF (baseline)"), flush=True)
+            print("ACP WebKit probe: News live Cover trial "
+                  + ("ON (prepared page copies, width masks, no native News snapshot; "
+                     "check newsLiveCover/newsCoverCount)"
+                     if args.news_live_cover_trial else "OFF (baseline)"), flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
