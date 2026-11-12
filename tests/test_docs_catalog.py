@@ -50,6 +50,7 @@ DEVELOPMENT_ARCHITECTURE = {
 DEVELOPMENT_TESTING = {
     "testing.md",
     "test-catalogue.md",
+    "webkit-transition-settings.md",
     "alarm-audio-testing.md",
     "airplay-hi-res-buffer-investigation.md",
     "bbc-news-testing.md",

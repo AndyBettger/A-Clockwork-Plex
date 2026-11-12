@@ -378,8 +378,10 @@ class WebKitProbeTests(unittest.TestCase):
             probe.parse_args(["--show", "--surface-transition-mode", "cover-reveal"])
         self.assertNotIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
                          probe.surface_transition_script("spatial"))
-        self.assertNotIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
-                         probe.surface_transition_script("configured"))
+        self.assertIn(probe.CONFIGURED_TRANSITION_TRIAL_SCRIPT,
+                      probe.surface_transition_script("configured"))
+        self.assertIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
+                      probe.surface_transition_script("configured"))
         self.assertIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
                       probe.surface_transition_script("cover-reveal"))
         with self.assertRaises(ValueError):
@@ -433,6 +435,15 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("transitionInFlight: host?.isTransitioning?.()", metrics)
         self.assertIn("requests: trial?.state.requests", metrics)
         self.assertIn("failures: trial?.state.failures", metrics)
+        self.assertIn("configuredSettings:", metrics)
+        self.assertIn("cssNavigationDuration:", metrics)
+
+    def test_configured_profile_can_read_fresh_saved_settings_without_allowing_writes(self):
+        source = SCRIPT.read_text()
+        self.assertIn('if key == "F8" and args.surface_transition_trial and args.surface_transition_mode == "configured":', source)
+        self.assertIn('webview.load_uri(url_root + f"/clock?acp-probe-settings={time.monotonic_ns()}")', source)
+        self.assertIn('session deadline unchanged', source)
+        self.assertIn('this proxy still refuses writes', source)
 
     def test_surface_transition_keyboard_switch_does_not_replace_original_get_path(self):
         src = SCRIPT.read_text(encoding="utf-8")

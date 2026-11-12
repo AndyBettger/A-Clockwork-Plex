@@ -360,7 +360,10 @@ SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
         history: false,
         source: 'webkit-read-only-surface-trial',
       };
-      if (kind === 'spatial' && direction) {
+      const configuredStyle = window.ACPDashboardPreferences?.read?.().transitionStyle
+        || document.documentElement.dataset.transitionStyle;
+      if (direction && (kind === 'spatial'
+          || (kind === 'configured' && configuredStyle === 'spatial-row'))) {
         options.spatialCommitDirection = direction;
       }
       const navigationEntry = performance.getEntriesByType('navigation')[0];
@@ -397,40 +400,71 @@ SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
 })()
 """
 
+CONFIGURED_TRANSITION_TRIAL_SCRIPT = r"""
+// Never write a transition choice or duration. The fresh server document and
+// ordinary preference bootstrap remain the Settings authority.
+(() => {
+  if (!window.__acpWebkitSurfaceTrial || window.__acpWebkitConfiguredTransitionTrial) return;
+  window.__acpWebkitConfiguredTransitionTrial = true;
+  window.__acpWebkitContentReadyTrial = true;
+  window.__acpWebkitNewsLiveCoverTrial = true;
+  window.__acpWebkitFrameStripTrial = true;
+})()
+"""
+
 COVER_REVEAL_TRIAL_SCRIPT = r"""
 (() => {
   if (!window.__acpWebkitSurfaceTrial || window.__acpWebkitCoverRevealTrial) return;
-  // The ordinary ACP router and CSS already implement Cover Reveal. Change
-  // only this ephemeral document's presentation, not the server dataset or
-  // saved preferences. The existing duration and theme remain authoritative.
+  // Configured mode reuses navigation continuity and native observation only.
+  // The historical Cover profile still forces its explicit local style.
   const root = document.documentElement;
-  const keepPreviewStyle = () => {
-    if (root.dataset.transitionStyle !== 'cover-reveal') root.dataset.transitionStyle = 'cover-reveal';
-  };
-  keepPreviewStyle();
-  // A later Settings mount may publish the server's style. Keep this explicit
-  // profile local and consistent for F-keys AND on-screen navigation.
-  new MutationObserver(keepPreviewStyle).observe(root, {
-    attributes: true, attributeFilter: ['data-transition-style'],
-  });
+  if (window.__acpWebkitConfiguredTransitionTrial !== true) {
+    const keepPreviewStyle = () => {
+      if (root.dataset.transitionStyle !== 'cover-reveal') root.dataset.transitionStyle = 'cover-reveal';
+    };
+    keepPreviewStyle();
+    new MutationObserver(keepPreviewStyle).observe(root, {
+      attributes: true, attributeFilter: ['data-transition-style'],
+    });
+  }
   root.classList.add('acp-webkit-layout-nav-trial');
   const state = {
     apiAvailable: typeof document.startViewTransition === 'function',
     started: 0, ready: 0, finished: 0, readyFailures: 0, finishFailures: 0,
-    lastElapsedMs: null, lastError: null,
+    lastElapsedMs: null, lastError: null, lastPresentation: null,
   };
   window.__acpWebkitCoverRevealTrial = state;
+  window.__acpWebkitNativeTransitions = state;
   if (!state.apiAvailable) return; // Observe the host's existing fallback.
 
   const original = document.startViewTransition;
   document.startViewTransition = function (...args) {
     const started = performance.now();
+    const presentation = {
+      style: window.ACPDashboardPreferences?.read?.().transitionStyle || root.dataset.transitionStyle,
+      durationMs: Number(root.dataset.transitionDurationMs),
+      cssDuration: window.getComputedStyle?.(root)?.getPropertyValue?.('--acp-transition-duration') || null,
+      animationSample: null,
+    };
     // Preserve native this/arguments, transition identity and promise results.
     // Observers do not replace ready/finished or consume callers' rejections.
     const transition = Reflect.apply(original, this, args);
     state.started += 1;
+    state.lastPresentation = presentation;
     transition.ready.then(
-      () => { state.ready += 1; },
+      () => {
+        state.ready += 1;
+        // Passive, once per ready. Some builds do not expose snapshot effects.
+        try {
+          const effects = (document.getAnimations?.() || [])
+            .filter(animation => /^acp-(in|out)-/.test(animation.animationName || ''))
+            .map(animation => ({ name: animation.animationName,
+              durationMs: animation.effect?.getComputedTiming?.().duration ?? null }));
+          presentation.animationSample = { status: effects.length ? 'observed' : 'not-exposed', effects };
+        } catch (_) {
+          presentation.animationSample = { status: 'unavailable', effects: [] };
+        }
+      },
       (error) => {
         state.readyFailures += 1;
         state.lastError = String(error?.message || error);
@@ -465,6 +499,9 @@ def surface_transition_script(mode: str, content_ready: bool = False,
         raise ValueError("News live Cover trial requires covered content preparation")
     if news_layer and news_live_cover:
         raise ValueError("News layer and live Cover trials are mutually exclusive")
+    if mode == "configured":
+        return (SURFACE_TRANSITION_TRIAL_SCRIPT + ";\n" + CONFIGURED_TRANSITION_TRIAL_SCRIPT
+                + ";\n" + COVER_REVEAL_TRIAL_SCRIPT)
     if mode == "cover-reveal":
         script = SURFACE_TRANSITION_TRIAL_SCRIPT + ";\n" + COVER_REVEAL_TRIAL_SCRIPT
         if content_ready:
@@ -481,6 +518,7 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
 (() => {
  const trial = window.__acpWebkitSurfaceTrial;
  const host = window.ACPSurfaceHost;
+ const root = document.documentElement;
  const news = document.querySelector('main.screen:not(.acp-spatial-outgoing-live-clone) '
    + '.acp-mounted-surface-news:not([hidden]) .news-page');
  const rect = (node) => {
@@ -502,7 +540,31 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
      || document.documentElement.dataset.transitionStyle || null,
    configuredDurationMs: window.ACPDashboardPreferences?.read?.().transitionDurationMs
      ?? Number(document.documentElement.dataset.transitionDurationMs || 300),
+   prefersReducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false,
    coverReveal: window.__acpWebkitCoverRevealTrial || null,
+   nativeTransitions: window.__acpWebkitNativeTransitions || null,
+   configuredSettings: window.__acpWebkitConfiguredTransitionTrial === true ? (() => {
+     const preferences = window.ACPDashboardPreferences;
+     const current = preferences?.read?.() || {};
+     const raw = {
+       style: root.dataset.serverTransitionStyle,
+       pageMs: Number(root.dataset.serverTransitionDurationMs),
+       navMs: Number(root.dataset.serverNavigationTransitionDurationMs),
+     };
+     const saved = {
+       style: preferences?.normaliseStyle?.(raw.style) || (raw.style === 'instant' ? 'none' : raw.style),
+       pageMs: preferences?.normaliseDuration?.(raw.pageMs) ?? raw.pageMs,
+       navMs: preferences?.normaliseNavigationDuration?.(raw.navMs) ?? raw.navMs,
+     };
+     const css = window.getComputedStyle?.(root);
+     return { source: 'server-template', raw, saved,
+       matches: current.transitionStyle === saved.style
+         && current.transitionDurationMs === saved.pageMs
+         && current.navigationTransitionDurationMs === saved.navMs,
+       cssPageDuration: css?.getPropertyValue?.('--acp-transition-duration') || null,
+       cssNavigationDuration: css?.getPropertyValue?.('--acp-navigation-transition-duration') || null,
+     };
+   })() : null,
    contentReadyTrial: window.__acpWebkitContentReadyTrial === true,
    contentReady: window.__acpWebkitContentReadyLast || null,
    coverStageApplied: window.__acpWebkitCoverStageApplied || 0,
@@ -540,6 +602,7 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
        const style = getComputedStyle(node);
        return { top: Math.round(node.getBoundingClientRect().top),
          translate: style.translate, marginBottom: style.marginBottom,
+         transitionDuration: style.transitionDuration,
          opacity: style.opacity, visibility: style.visibility };
      };
      return { drawer: snapshot('nav-drawer'), handle: snapshot('nav-handle') };
@@ -679,8 +742,8 @@ def parse_args(argv=None):
                              "instead of reloading whole pages (read-only preview).")
     parser.add_argument("--surface-transition-mode",
                         choices=("spatial", "configured", "cover-reveal"), default="spatial",
-                        help="Spatial Row, configured ordinary transition, or an "
-                             "ephemeral Cover Reveal profile with F11 navigation; "
+                        help="Spatial Row, a Settings-driven profile with accepted WebKit fixes, "
+                             "or an explicit Cover Reveal profile; "
                              "only with --surface-transition-trial.")
     parser.add_argument("--cover-content-ready-trial", action="store_true",
                         help="Prepare content behind the outgoing page before native snapshots; "
@@ -905,6 +968,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("navLayoutTrial"),
                     state.get("effectiveStyle"),
                     json.dumps(state.get("coverReveal"), sort_keys=True),
+                    json.dumps(state.get("configuredSettings"), sort_keys=True),
                     state.get("contentReadyTrial"),
                     json.dumps(state.get("contentReady"), sort_keys=True),
                     state.get("coverStageApplied"), state.get("coverGuardCount"),
@@ -985,6 +1049,11 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         if key in ("Escape", "q", "Q") and (key == "Escape" or
                                             event.state & Gdk.ModifierType.CONTROL_MASK):
             quit_if_running()
+            return True
+        if key == "F8" and args.surface_transition_trial and args.surface_transition_mode == "configured":
+            print("ACP WebKit probe: F8 reloading Clock to read saved Settings "
+                  "(intentional document load; session deadline unchanged)", flush=True)
+            webview.load_uri(url_root + f"/clock?acp-probe-settings={time.monotonic_ns()}")
             return True
         if key == "F10" and args.surface_transition_trial:
             # Retired F9 still flashed. F10 instead drives one joined row's
@@ -1102,9 +1171,16 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         print("ACP WebKit probe: F6 hides outgoing clone paint (dark gap); "
               "F7 removes nav blur; F10 moves one frame-driven spatial strip "
               "without Web Animations; F11 uses layout-positioned drawer/pill "
-              "motion. OFF by default except F11 in the cover-reveal profile. "
+              "motion. Configured mode enables F10/F11; Cover enables F11. "
               "F9 retired.",
               flush=True)
+        if args.surface_transition_mode == "configured":
+            print("ACP WebKit probe: Settings-driven profile: saved style/page/nav durations; "
+                  "no forced style. Accepted content staging, Cover-only News copies, "
+                  "F10 spatial row and F11 navigation enabled. F8 reloads saved Settings "
+                  "on Clock; session deadline unchanged. Save changes in the normal ACP "
+                  "window; this proxy still refuses writes. Check configuredSettings, "
+                  "nativeTransitions and renderer duration metrics.", flush=True)
         if args.surface_transition_mode == "cover-reveal":
             print("ACP WebKit probe: Cover Reveal profile: preview-only style, "
                   "existing configured duration, F11 navigation ON. F1-F5 and "

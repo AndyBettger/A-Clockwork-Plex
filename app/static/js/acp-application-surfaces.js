@@ -912,6 +912,7 @@
             await ordinaryLiveCommit(from, commit);
           },
           ...(surface === 'news' && window.__acpWebkitNewsLiveCoverTrial === true
+            && applicationTransitionStyle() === 'cover-reveal'
             ? { coverCommit: ({ commit }) => newsLiveCoverCommit(from, commit) }
             : {}),
           async stageViewTransition({ commit } = {}) {

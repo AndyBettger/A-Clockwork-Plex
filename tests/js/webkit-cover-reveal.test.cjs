@@ -13,6 +13,7 @@ function script(name) {
   return source.slice(start + marker.length, source.indexOf('\n"""', start + marker.length));
 }
 const profile = script('COVER_REVEAL_TRIAL_SCRIPT');
+const configuredProfile = script('CONFIGURED_TRANSITION_TRIAL_SCRIPT');
 const bridge = script('SURFACE_TRANSITION_TRIAL_SCRIPT');
 const metrics = script('SURFACE_TRANSITION_METRICS_SCRIPT');
 function deferred() {
@@ -51,6 +52,106 @@ function fixture({ hasBridge = true, hasAPI = true } = {}) {
     ready, finished, run, tick: (value) => { clock = value; } };
 }
 
+function savedPreferences(f, { style, pageMs, navMs }) {
+  const properties = new Map();
+  f.root.style = { setProperty: (key, value) => properties.set(key, value),
+    getPropertyValue: (key) => properties.get(key) || '' };
+  Object.assign(f.root.dataset, {
+    transitionStyle: style, serverTransitionStyle: style,
+    transitionDurationMs: String(pageMs), serverTransitionDurationMs: String(pageMs),
+    navigationTransitionDurationMs: String(navMs), serverNavigationTransitionDurationMs: String(navMs),
+  });
+  f.window.location = { pathname: '/clock' };
+  f.window.dispatchEvent = () => {};
+  f.context.CustomEvent = class {};
+  f.window.getComputedStyle = () => f.root.style;
+  f.context.getComputedStyle = f.window.getComputedStyle;
+  f.document.querySelector = () => null;
+  f.document.querySelectorAll = () => [];
+  f.document.getElementById = () => null;
+  vm.runInContext(fs.readFileSync(path.join(__dirname,
+    '../../app/static/js/dashboard-preferences-bootstrap.js'), 'utf8'), f.context);
+}
+
+test('configured profile preserves all nine saved choices and independent page/nav durations', () => {
+  const styles = ['grow-fade', 'crossfade', 'horizontal-slide', 'vertical-lift',
+    'cover-reveal', 'zoom', 'blur-dissolve', 'spatial-row', 'instant'];
+  for (const style of styles) for (const pageMs of [0, 300, 900, 2000]) for (const navMs of [0, 180, 1000]) {
+    const f = fixture();
+    savedPreferences(f, { style, pageMs, navMs });
+    vm.runInContext(configuredProfile, f.context); f.run();
+    const actual = f.window.ACPDashboardPreferences.read();
+    assert.equal(actual.transitionStyle, style === 'instant' ? 'none' : style);
+    assert.equal(actual.transitionDurationMs, pageMs);
+    assert.equal(actual.navigationTransitionDurationMs, navMs);
+    assert.equal(f.root.dataset.serverTransitionStyle, style);
+    assert.equal(f.root.dataset.serverTransitionDurationMs, String(pageMs));
+    assert.equal(f.root.dataset.serverNavigationTransitionDurationMs, String(navMs));
+    assert.equal(f.observers.length, 0, 'no style-pinning observer in configured mode');
+    assert.equal(f.window.__acpWebkitContentReadyTrial, true);
+    assert.equal(f.window.__acpWebkitNewsLiveCoverTrial, true);
+    assert.equal(f.window.__acpWebkitFrameStripTrial, true);
+    assert.ok(f.flags.has('acp-webkit-layout-nav-trial'));
+    const sampled = JSON.parse(vm.runInContext(metrics, f.context)).configuredSettings;
+    assert.equal(sampled.matches, true);
+    assert.equal(sampled.cssPageDuration, pageMs + 'ms');
+    assert.equal(sampled.cssNavigationDuration, navMs + 'ms');
+  }
+});
+
+test('configured mode allows normal preference updates and reports departure from saved settings', () => {
+  const f = fixture();
+  savedPreferences(f, { style: 'zoom', pageMs: 300, navMs: 180 });
+  vm.runInContext(configuredProfile, f.context); f.run();
+  f.window.ACPDashboardPreferences.write({ transitionStyle: 'crossfade', transitionDurationMs: 900 });
+  assert.equal(f.root.dataset.transitionStyle, 'crossfade');
+  assert.equal(f.root.dataset.serverTransitionStyle, 'zoom');
+  const sampled = JSON.parse(vm.runInContext(metrics, f.context)).configuredSettings;
+  assert.equal(sampled.matches, false, 'a local override cannot masquerade as saved Settings');
+  assert.equal(sampled.cssPageDuration, '900ms');
+});
+
+test('configured F-keys request Spatial direction only for saved Spatial Row', async () => {
+  for (const style of ['grow-fade', 'crossfade', 'horizontal-slide', 'vertical-lift',
+    'cover-reveal', 'zoom', 'blur-dissolve', 'spatial-row', 'instant']) {
+    const f = fixture({ hasBridge: false });
+    savedPreferences(f, { style, pageMs: 900, navMs: 180 });
+    let active = 'clock';
+    const requests = [];
+    f.window.ACPSurfaceHost = { activeSurface: () => active, canNavigate: () => true,
+      supportsViewTransitions: () => true,
+      navigate: async (target, options) => {
+        requests.push({ target, options }); active = target;
+        return { handled: true, accepted: true };
+      } };
+    f.window.ACPWorkspaceTopology = { acpSurfaceOrder: () => ['clock', 'weather', 'news', 'airplay'] };
+    vm.runInContext(bridge, f.context);
+    vm.runInContext(configuredProfile, f.context); f.run();
+    await f.window.__acpWebkitSurfaceTrial.navigate('news', 'configured');
+    assert.equal(requests[0].options.spatialCommitDirection, style === 'spatial-row' ? 'forward' : undefined);
+    assert.equal(f.window.__acpWebkitSurfaceTrial.state.last.configuredStyle, style === 'instant' ? 'none' : style);
+  }
+});
+
+test('native diagnostics sample available animation timing without replacing effects or promises', async () => {
+  const f = fixture();
+  savedPreferences(f, { style: 'crossfade', pageMs: 900, navMs: 180 });
+  vm.runInContext(configuredProfile, f.context); f.run();
+  f.document.getAnimations = () => ['acp-in-crossfade', 'acp-out-crossfade', 'unrelated'].map(name => ({
+    animationName: name, effect: { getComputedTiming: () => ({ duration: 900 }) },
+  }));
+  const transition = f.document.startViewTransition(() => {});
+  assert.equal(transition, f.transition);
+  f.ready.resolve(); await transition.ready;
+  const sample = f.window.__acpWebkitNativeTransitions.lastPresentation;
+  assert.equal(sample.style, 'crossfade');
+  assert.equal(sample.durationMs, 900);
+  assert.equal(sample.cssDuration, '900ms');
+  assert.equal(sample.animationSample.status, 'observed');
+  assert.equal(sample.animationSample.effects.length, 2);
+  assert.ok(sample.animationSample.effects.every(effect => effect.durationMs === 900));
+});
+
 test('Cover profile changes only local style and enables accepted F11 navigation', () => {
   const f = fixture();
   f.run();
@@ -70,11 +171,13 @@ test('Cover profile changes only local style and enables accepted F11 navigation
 
 test('profile does nothing without explicit surface trial installation', () => {
   const f = fixture({ hasBridge: false });
+  vm.runInContext(configuredProfile, f.context);
   f.run();
   assert.equal(f.root.dataset.transitionStyle, 'spatial-row');
   assert.equal(f.flags.size, 0);
   assert.equal(f.observers.length, 0);
   assert.equal(f.document.startViewTransition, f.original);
+  assert.equal(f.window.__acpWebkitFrameStripTrial, undefined);
 });
 
 test('native transition identity, this, arguments and promises are preserved', async () => {

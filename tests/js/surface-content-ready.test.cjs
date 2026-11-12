@@ -16,7 +16,7 @@ const deferred = () => {
 };
 const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
 
-function fixture({ enabled = true, liveCover = false, duration = 2000 } = {}) {
+function fixture({ enabled = true, liveCover = false, duration = 2000, style = 'cover-reveal' } = {}) {
   const calls = [], registry = new Map(), timers = new Map();
   const refresh = deferred(), forecast = deferred(), completion = deferred(), image = deferred();
   let now = 0, timerId = 0;
@@ -57,6 +57,7 @@ function fixture({ enabled = true, liveCover = false, duration = 2000 } = {}) {
     __acpWebkitContentReadyTrial: enabled,
     __acpWebkitNewsLiveCoverTrial: liveCover,
     innerWidth: 853, innerHeight: 480,
+    getComputedStyle: () => ({ getPropertyValue: () => `${duration}ms` }),
     ACPWeatherSurface: { refresh: () => { calls.push('weather-refresh'); return refresh.promise; } },
     ACPNewsSurface: { refresh: () => { calls.push('news-refresh'); return refresh.promise; } },
     ACPWeatherForecast: { ready: forecast.promise },
@@ -83,12 +84,16 @@ function fixture({ enabled = true, liveCover = false, duration = 2000 } = {}) {
     },
     nextFrame: async () => { calls.push('paint-frame'); },
     applicationTransitionDurationMs: () => duration,
+    applicationTransitionStyle: () => style,
     commitSurface: () => { calls.push('commit'); },
     ensureMounted: async () => ({ wrapper, title: 'Page', scripts: ['page.js'] }),
     ensureScripts: async () => { calls.push('scripts'); },
     syncLogicalMode: async () => { calls.push('logical-mode'); },
   };
   vm.createContext(context);
+  // Execute the actual CSS duration reader as well as the renderer/lifecycle.
+  vm.runInContext(source.slice(source.indexOf('  function applicationTransitionDurationMs('),
+    source.indexOf('  function nextFrame(')), context);
   vm.runInContext(preparation, context);
   return { window, registry, calls, timers, refresh, forecast, completion, image,
     context, guards, body, screen, scroller, animations,
@@ -427,6 +432,64 @@ test('real host animate:false News entry bypasses the copy renderer', async () =
   assert.equal(f.window.__acpWebkitNewsLiveCoverApplied, undefined);
   assert.equal(f.guards.length, 0);
   assert.equal(f.animations.length, 0);
+});
+
+test('News copy workaround cannot replace any other configured transition', async () => {
+  for (const style of ['grow-fade', 'crossfade', 'horizontal-slide', 'vertical-lift',
+    'zoom', 'blur-dissolve', 'spatial-row', 'none']) {
+    const f = fixture({ liveCover: true, style });
+    const native = installRealHost(f);
+    f.context.document.documentElement.dataset.transitionStyle = style;
+    const pending = f.window.ACPSurfaceHost.navigate('news', { history: false });
+    f.refresh.resolve(true); f.image.resolve();
+    await flush();
+    if (style !== 'none') {
+      assert.equal(typeof native.nativeUpdate(), 'function', style + ' uses its native style');
+      native.nativeUpdate()(); native.updated.resolve(); native.finished.resolve();
+    } else {
+      assert.equal(native.nativeUpdate(), null, 'Instant starts no native transition');
+    }
+    assert.equal((await pending).accepted, true);
+    assert.equal(f.window.__acpWebkitNewsLiveCoverApplied, undefined, style + ' cannot become Cover');
+    assert.equal(f.body.children.length, 0);
+  }
+});
+
+test('configured Spatial routing precedes the News Cover workaround', async () => {
+  const f = fixture({ liveCover: true, style: 'spatial-row' });
+  const native = installRealHost(f);
+  f.context.document.documentElement.dataset.transitionStyle = 'spatial-row';
+  f.context.spatialSurfaceDirection = () => 'forward';
+  f.context.spatialLiveCommit = async (direction, from, to, commit) => {
+    assert.equal(direction, 'forward'); assert.equal(from, 'clock'); assert.equal(to, 'news');
+    f.calls.push('spatial-renderer'); await commit();
+  };
+  const pending = f.window.ACPSurfaceHost.navigate('news', {
+    history: false, spatialCommitDirection: 'forward',
+  });
+  f.refresh.resolve(true); f.image.resolve();
+  assert.equal((await pending).accepted, true);
+  assert.ok(f.calls.includes('spatial-renderer'));
+  assert.equal(native.nativeUpdate(), null);
+  assert.equal(f.window.__acpWebkitNewsLiveCoverApplied, undefined);
+});
+
+test('News Cover uses the actual CSS duration, including zero and seconds units', async () => {
+  for (const [css, expected] of [['0ms', 0], ['300ms', 300], ['.9s', 900], ['2000ms', 2000]]) {
+    const f = fixture({ liveCover: true });
+    f.window.getComputedStyle = () => ({ getPropertyValue: () => css });
+    const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+    const pending = prepared.coverCommit({ commit: async () => {} });
+    await flush();
+    if (expected) {
+      assert.equal(f.animations.length, 2);
+      f.animations.forEach((animation) => {
+        assert.equal(animation.timing.duration, expected); animation.resolve();
+      });
+    } else assert.equal(f.animations.length, 0);
+    await pending;
+    assert.equal(f.window.__acpWebkitNewsLiveCoverLast.durationMs, expected);
+  }
 });
 
 for (const failure of ['commit', 'paint', 'second-animation']) {
