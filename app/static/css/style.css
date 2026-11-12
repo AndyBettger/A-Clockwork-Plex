@@ -451,8 +451,10 @@ p {
   font-weight: 700;
 }
 
+/* Drawer motion/touch can set native :hover without new pointer intent.
+   Other buttons and the no-script navigation fallback retain ordinary hover. */
 .button:active,
-.button:hover {
+.button:hover:where(:not(.nav-button), html:not(.acp-nav-pointer-intent) *, .is-pointer-hover) {
   background: var(--acp-fill-control-hover-neutral);
 }
 

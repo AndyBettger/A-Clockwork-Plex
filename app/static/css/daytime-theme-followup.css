@@ -91,7 +91,7 @@ body:not([data-active-page="plexamp"]) .nav-drawer .nav-button.is-active:is(:hov
 /* Theme-aware feedback, never override the selected workspace. On hybrid
    touchscreens :active must win even when :hover is also true. */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body:not([data-active-page="plexamp"]) .nav-drawer .nav-button:not(.is-active):hover {
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button:not(.is-active):hover:where(html:not(.acp-nav-pointer-intent) *, .is-pointer-hover) {
   background: var(--acp-nav-hover-fill) !important;
 }
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])

@@ -204,12 +204,14 @@ test('News geometry sampling is passive, excludes the source copy and caps card 
   f.window.__acpWebkitNewsLiveCoverTrial = true;
   f.window.__acpWebkitNewsLiveCoverApplied = 2;
   f.window.__acpWebkitNewsLiveCoverLast = { from: 'weather', phase: 'animating', durationMs: 2000 };
+  f.window.ACPNavPointerFeedback = { status: () => ({ open: true, armed: false, hovered: null }) };
   const actual = JSON.parse(vm.runInContext(metrics, f.context));
   assert.equal(actual.newsLayerTrial, true);
   assert.equal(actual.newsLiveCoverTrial, true);
   assert.equal(actual.newsLiveCoverApplied, 2);
   assert.equal(actual.newsLiveCover.phase, 'animating');
   assert.equal(actual.newsCoverCount, 2);
+  assert.deepEqual(actual.navPointerFeedback, { open: true, armed: false, hovered: null });
   assert.equal(actual.newsLayout.transform, 'matrix(1, 0, 0, 1, 0, 0)');
   assert.equal(actual.newsLayout.cards.length, 3);
   assert.equal(actual.newsLayout.cards[0].box.width, 123.5);

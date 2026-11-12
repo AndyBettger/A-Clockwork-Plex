@@ -33,7 +33,7 @@ body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-a
 }
 
 /* Same night-only colour owner as normal and selected navigation. */
-body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button:not(.is-active):hover {
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button:not(.is-active):hover:where(html:not(.acp-nav-pointer-intent) *, .is-pointer-hover) {
   background: var(--acp-nav-hover-fill) !important;
 }
 body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button:not(.is-active):active {

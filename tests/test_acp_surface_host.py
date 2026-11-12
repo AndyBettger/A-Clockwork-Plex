@@ -501,6 +501,26 @@ class AcpSurfaceHostTests(unittest.TestCase):
             base,
         )
 
+    def test_navigation_pointer_feedback_behavior(self):
+        base = BASE.read_text(encoding="utf-8")
+        self.assertIn("js/nav-pointer-feedback.js", base)
+        self.assertLess(base.index("js/nav-drawer.js"), base.index("js/nav-pointer-feedback.js"))
+        guard = ":where(html:not(.acp-nav-pointer-intent) *, .is-pointer-hover)"
+        for filename in ("daytime-theme-followup.css", "night-navigation-closure.css"):
+            css = (ROOT / "app/static/css" / filename).read_text(encoding="utf-8")
+            self.assertIn(".nav-button:not(.is-active):hover" + guard, css)
+        style = (ROOT / "app/static/css/style.css").read_text(encoding="utf-8")
+        self.assertIn(".button:active,", style)
+        self.assertIn(".button:hover:where(:not(.nav-button), html:not(.acp-nav-pointer-intent) *, .is-pointer-hover)", style)
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js unavailable for navigation-pointer behavior tests")
+        result = subprocess.run(
+            [node, "--test", str(ROOT / "tests/js/nav-pointer-feedback.test.cjs")],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_snapshot_content_readiness_behavior(self):
         """Execute readiness order/deadlines; pixel acceptance stays on Pi."""
         node = shutil.which("node")

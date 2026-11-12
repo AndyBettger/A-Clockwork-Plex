@@ -280,7 +280,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         followup = (ROOT / "app/static/css/daytime-theme-followup.css").read_text()
         self.assertLess(base.index("css/daytime-theme-followup.css"),
                         base.index("css/night-navigation-closure.css"))
-        self.assertIn("20261025-b3-pointer-feedback-v1", base)
+        self.assertIn("20261112-nav-pointer-intent-v1", base)
         self.assertIn(".nav-drawer .nav-button", followup)
         self.assertIn("!important", followup)
         self.assertIn(
