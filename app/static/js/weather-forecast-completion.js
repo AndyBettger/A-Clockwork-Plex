@@ -142,18 +142,27 @@
     }
   }
 
-  function run(attempts = 60) {
+  async function run(attempts = 60) {
     if (!document.querySelector('[data-weather-forecast-console]')) {
-      if (attempts > 0) window.setTimeout(() => run(attempts - 1), 100);
+      const page = document.querySelector('.weather-detail-page');
+      // A disabled/unavailable optional provider has already settled without
+      // a console. Do not keep polling after that explicit result.
+      if (page?.dataset.acpForecastSettled === 'true') return;
+      if (attempts > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+        return run(attempts - 1);
+      }
       return;
     }
-    fetch('/api/weather/forecast', { cache: 'no-store' })
+    return fetch('/api/weather/forecast', { cache: 'no-store' })
       .then((response) => response.ok ? response.json() : null)
       .then(update)
       .catch(() => {});
   }
 
   window.addEventListener('acp:clock-format-changed', () => run(1));
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => run(), { once: true });
-  else run();
+  const ready = document.readyState === 'loading'
+    ? new Promise((resolve) => document.addEventListener('DOMContentLoaded', () => resolve(run()), { once: true }))
+    : run();
+  window.ACPWeatherForecastCompletion = { ready };
 })();

@@ -236,6 +236,14 @@ Restore compares and reapplies those fields through the normal News Settings val
 
 RSS downloads/cache/private article hand-off metadata are excluded from Backup/Restore/Reset portability.
 
+## Visible status ownership
+
+The feed service exposes both an **overall** snapshot status and per-category status. The overall status remains useful for maintenance/Settings because one failed enabled source should make the service globally degraded even when other sources refreshed successfully.
+
+The News page rail pill has a narrower job: it describes the section the owner is currently reading. It therefore prefers the active category's `status` and `stale` fields, falling back to the overall service status only when category state is unavailable. This prevents an unrelated feed failure from labelling a freshly refreshed Top Stories/UK/etc. section **Cached news** and applying warning chrome. The global degraded state is not discarded; it simply no longer overrides healthy active-section presentation.
+
+Status colour is semantic rather than purely thematic. A healthy active feed uses the current daytime accent, while cached/stale/error states retain warning/error chrome independent of the selected palette. This is intentional: a stale feed under Green Phosphor must not look healthy merely because green is the selected decorative theme.
+
 ## Failure boundary
 
 BBC/network/XML failure must never affect the rest of the appliance. A failed active section keeps its previous successful feed only when that cache belongs to the same configured source, and records an explicit degraded/stale/error state. The News page labels stale data rather than inventing content.
@@ -243,6 +251,9 @@ BBC/network/XML failure must never affect the rest of the appliance. A failed ac
 A failed custom-feed preflight does not change configuration or cache. A friendly page URL that derives to a nonexistent RSS endpoint therefore fails safely at the same gate. A missing/rejected article link or QR-generation failure does not prevent the story summary dialog from opening and does not affect the feed worker.
 
 The previously accepted real Wi-Fi interruption proved the cache-first boundary: cached stories and ticker remained visible with stale/cached status and normal fresh updates resumed after connectivity returned.
+
+
+A later real Wi-Fi dropout/reconnect exposed a usability gap rather than a cache-authority failure: after connectivity recovered, the appliance could legitimately remain on cached News until the worker's normal expiry/cadence triggered another attempt. Settings → News therefore now exposes **Refresh feeds now**. It calls a narrow local `POST /api/news/refresh` endpoint which invokes the existing `BBCNewsFeedService.refresh(force=True)` path. It does not introduce a second fetcher, bypass feed-source validation or clear last-good data. The Settings control is disabled while the request is in flight and reports ready/degraded/failure state from the returned normal News snapshot. Commissioned-Pi retest confirms the button successfully refreshes the feeds after connectivity recovery.
 
 ## Physical acceptance
 

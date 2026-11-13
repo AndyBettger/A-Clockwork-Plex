@@ -35,9 +35,18 @@
   let snapshot = null;
   let activeCategory = null;
   let refreshTimer = null;
+  let refreshInFlight = null;
   let logoSource = '';
   let detailStoryId = '';
   let updateStoryScrollbar = () => {};
+
+  function newsIsVisible() {
+    return (
+      String(document.body?.dataset?.activePage || '').toLowerCase() === 'news'
+      && !document.hidden
+      && window.ACPPlexamp?.isVisiblyOpen?.() !== true
+    );
+  }
 
   function text(value) {
     return String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -56,7 +65,6 @@
     let drag = null;
 
     function measurements() {
-      storyScrollbar.hidden = false;
       const maxScroll = Math.max(0, storyMount.scrollHeight - storyMount.clientHeight);
       const availableHeight = Math.max(0, storyScrollbar.clientHeight - (trackInset * 2));
       const proportionalHeight = storyMount.scrollHeight > 0
@@ -68,8 +76,13 @@
     }
 
     function update() {
+      if (!storyMount.isConnected || !storyScrollbar.isConnected) return;
+      if (storyMount.clientHeight <= 0) return;
+
+      storyScrollbar.hidden = false;
       const metrics = measurements();
-      const scrollable = metrics.maxScroll > 1 && metrics.availableHeight > 0;
+      if (metrics.availableHeight <= 0) return;
+      const scrollable = metrics.maxScroll > 1;
       storyScrollbar.hidden = !scrollable;
       storyScrollbar.setAttribute('aria-hidden', scrollable ? 'false' : 'true');
       storyScrollbar.tabIndex = scrollable ? 0 : -1;
@@ -254,7 +267,10 @@
 
   function renderStatus() {
     const state = snapshot?.categories?.[activeCategory] || {};
-    const overall = text(snapshot?.status || state.status || 'empty').toLowerCase();
+    // The rail pill describes the section currently on screen. A different
+    // enabled feed may have failed and make snapshot.status "degraded" even
+    // while this section refreshed successfully, so prefer the section state.
+    const overall = text(state.status || snapshot?.status || 'empty').toLowerCase();
     const warning = ['degraded', 'stale', 'error'].includes(overall) || state.stale === true;
 
     if (statusPill) {
@@ -437,26 +453,52 @@
     renderTicker();
   }
 
-  async function loadNews() {
-    if (document.hidden) return;
-    try {
-      const response = await fetch(API, { cache: 'no-store' });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.ok === false) {
-        throw new Error(payload.error || `BBC News returned HTTP ${response.status}.`);
+  function captureScrollState() {
+    return {
+      stories: storyMount?.scrollTop || 0,
+      categories: categoryMount?.scrollTop || 0,
+    };
+  }
+
+  function restoreScrollState(position) {
+    window.requestAnimationFrame(() => {
+      if (storyMount) storyMount.scrollTop = position.stories;
+      if (categoryMount) categoryMount.scrollTop = position.categories;
+      updateStoryScrollbar();
+      window.ACPNewsCategoryScrollbar?.refresh?.();
+    });
+  }
+
+  function loadNews() {
+    // Script load, activation and a pre-snapshot waiter can request the same
+    // refresh. Share its completion so a slower duplicate cannot repaint later.
+    if (refreshInFlight) return refreshInFlight;
+    if (!newsIsVisible()) return Promise.resolve(false);
+    refreshInFlight = (async () => {
+      try {
+        const response = await fetch(API, { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.error || `BBC News returned HTTP ${response.status}.`);
+        }
+        const position = captureScrollState();
+        snapshot = payload;
+        render();
+        restoreScrollState(position);
+        return true;
+      } catch (error) {
+        if (statusPill) {
+          statusPill.textContent = 'News unavailable';
+          statusPill.classList.add('is-warning');
+        }
+        if (message) {
+          message.hidden = false;
+          message.textContent = error.message || 'Could not read the local BBC News cache.';
+        }
+        return false;
       }
-      snapshot = payload;
-      render();
-    } catch (error) {
-      if (statusPill) {
-        statusPill.textContent = 'News unavailable';
-        statusPill.classList.add('is-warning');
-      }
-      if (message) {
-        message.hidden = false;
-        message.textContent = error.message || 'Could not read the local BBC News cache.';
-      }
-    }
+    })().finally(() => { refreshInFlight = null; });
+    return refreshInFlight;
   }
 
   bindStoryScrollbar();
@@ -485,10 +527,26 @@
   });
   window.addEventListener('acp:clock-format-changed', render);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) void loadNews();
+    if (newsIsVisible()) void loadNews();
+  });
+  document.addEventListener('acp:surface-activated', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'news') {
+      void loadNews();
+    }
+  });
+  document.addEventListener('acp:surface-settled', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'news') {
+      updateStoryScrollbar();
+      window.ACPNewsCategoryScrollbar?.refresh?.();
+    }
   });
   window.addEventListener('pagehide', () => window.clearInterval(refreshTimer));
 
   void loadNews();
   refreshTimer = window.setInterval(loadNews, 60000);
+
+  window.ACPNewsSurface = {
+    refresh: loadNews,
+    isVisible: newsIsVisible,
+  };
 })();

@@ -14,7 +14,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("active_page | default(state.mode) == 'weather'", base)
         self.assertIn("css/weather-forecast.css", base)
         self.assertIn("js/weather-forecast.js", base)
-        self.assertIn("20260802-custom-forecast-scrollbar", base)
+        self.assertIn("20261007-spatial-context-v2", base)
         Environment().parse(base)
 
     def test_forecast_client_is_cache_only_and_never_controls_the_appliance(self):
@@ -75,6 +75,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("touch-action: pan-x pan-y", styles)
         self.assertIn("scroll-snap-type", styles)
         self.assertIn("body[data-active-page=\"weather\"]", styles)
+        self.assertIn('.acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]', styles)
 
     def test_unknown_daily_conditions_are_hidden_without_relabelling_later_days(self):
         client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
@@ -107,7 +108,9 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("aria-valuenow", client)
         self.assertIn(".weather-forecast-scrollbar {", styles)
         self.assertIn(".weather-forecast-scrollbar-thumb {", styles)
-        self.assertIn("border-radius: 999px", styles)
+        tokens = Path("app/static/css/acp-design-tokens.css").read_text(encoding="utf-8")
+        self.assertIn("border-radius: var(--acp-radius-pill)", styles)
+        self.assertIn("--acp-radius-pill: 999px", tokens)
         self.assertIn("background: rgba(5, 13, 24, 0.46)", styles)
         self.assertIn("cursor: grab", styles)
 
@@ -123,6 +126,20 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("End", client)
         self.assertIn("touch-action: none", styles)
         self.assertIn("touch-action: pan-x pan-y", styles)
+
+    def test_custom_scrollbar_remeasures_after_same_document_surface_activation(self):
+        client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
+
+        self.assertIn("const scrollbarRefreshers = new Set()", client)
+        self.assertIn("function refreshForecastScrollbars()", client)
+        self.assertIn("acp:surface-activated", client)
+        self.assertIn("acp:surface-settled", client)
+        self.assertIn("acp:weather-grid-refreshed", client)
+        self.assertIn("strip.clientWidth <= 0", client)
+        self.assertIn("rail.clientWidth <= 0", client)
+        self.assertIn("preserve", client.lower())
+        self.assertIn("window.requestAnimationFrame", client)
+        self.assertIn("window.setTimeout(update, 180)", client)
 
     def test_settings_location_lookup_stages_existing_forecast_fields(self):
         presenter = Path("app/static/js/settings-weather-location.js").read_text(

@@ -34,11 +34,13 @@ body.airplay-metadata-active .airplay-title-scroll-shell.is-overflowing h1 {
   animation: airplay-source-scroll var(--airplay-scroll-duration, 20s) linear 1.2s infinite alternate;
 }
 
-body.airplay-session-idle .airplay-title-scroll-shell {
+body.airplay-session-idle .airplay-title-scroll-shell ,
+body.airplay-session-unresolved .airplay-title-scroll-shell {
   overflow: visible;
 }
 
-body.airplay-session-idle .airplay-title-scroll-shell h1 {
+body.airplay-session-idle .airplay-title-scroll-shell h1 ,
+body.airplay-session-unresolved .airplay-title-scroll-shell h1 {
   display: block;
   min-width: 0;
   max-width: 100%;

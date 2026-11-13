@@ -21,6 +21,8 @@ This directory contains the engineering material that is useful when changing, v
 
 - [`testing/testing.md`](testing/testing.md) — local validation, targeted-test guidance and GitHub Actions CI.
 - [`testing/test-catalogue.md`](testing/test-catalogue.md) — maintained module-by-module catalogue of the automated regression suite, with purpose, run commands and expected-result contract.
+- [`testing/webkit-transition-settings.md`](testing/webkit-transition-settings.md) — #94 development-Pi matrix for all saved transition styles and independent page/navigation timings.
+- [`testing/webkit-transition-results.csv`](testing/webkit-transition-results.csv) — attempt-by-attempt #94 visual results, preserving failures and pending retests.
 - [`testing/alarm-audio-testing.md`](testing/alarm-audio-testing.md) — scheduled-alarm topology, safety limits and regression checks.
 - [`testing/bbc-news-testing.md`](testing/bbc-news-testing.md) — fixture-based BBC feed/cache regression boundary and later physical UI acceptance scope.
 - [`testing/fresh-appliance-acceptance-runbook.md`](testing/fresh-appliance-acceptance-runbook.md) — formal clean-room/replacement-SD acceptance procedure.

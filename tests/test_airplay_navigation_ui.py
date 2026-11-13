@@ -69,6 +69,17 @@ class AirPlayNavigationUiTests(unittest.TestCase):
         self.assertNotIn("spokenAppPattern", client)
         self.assertNotIn("LONGFORM_OVERRIDE_SECONDS", client)
 
+    def test_navigation_polling_follows_mounted_airplay_visibility(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        presenter = PRESENTER.read_text(encoding="utf-8")
+        self.assertIn("window.ACPAirPlaySurfaceLifecycle", client)
+        self.assertIn("surfaceLifecycle.isVisible()", client)
+        self.assertIn("surfaceLifecycle?.subscribe?.", client)
+        self.assertIn("window.ACPAirPlaySurfaceLifecycle", presenter)
+        self.assertIn("surfaceLifecycle?.subscribe?.", presenter)
+        self.assertNotIn("setInterval(refresh", client)
+        self.assertNotIn("setInterval(refreshSkipMode", presenter)
+
     def test_navigation_disables_when_coordinator_has_no_connected_sender(self):
         client = CLIENT.read_text(encoding="utf-8")
         self.assertIn("connected = source.connected === true", client)

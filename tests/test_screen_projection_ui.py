@@ -12,6 +12,7 @@ MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
 PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 PLEXAMP_PERSISTENT = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
 WEATHER_TEMPLATE = ROOT / "app" / "templates" / "weather.html"
+WEATHER_SURFACE = ROOT / "app" / "static" / "js" / "weather-surface.js"
 BASE = ROOT / "app" / "templates" / "base.html"
 RUNNER = ROOT / "app" / "runner.py"
 
@@ -63,7 +64,10 @@ class ScreenProjectionUiTests(unittest.TestCase):
 
         self.assertIn("let presentationInFlight = false", transitions)
         self.assertIn("function holdPresentation", transitions)
-        self.assertIn("isPresenting: () => manualClaimInFlight || presentationInFlight || leaving", transitions)
+        self.assertIn("isPresenting: () => (", transitions)
+        self.assertIn("manualClaimInFlight", transitions)
+        self.assertIn("presentationInFlight", transitions)
+        self.assertIn("window.ACPSurfaceHost?.isTransitioning?.() === true", transitions)
         self.assertIn("window.ACPNavigationState?.isPresenting?.()", client)
 
     def test_arrival_marker_remains_only_as_network_fallback(self):
@@ -188,7 +192,11 @@ const fs = require('fs');
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
 
         self.assertIn("function plexampVisiblyOpen", transitions)
-        self.assertIn("target.href === window.location.href && !plexampVisiblyOpen()", transitions)
+        self.assertIn(
+            "mainNavLink && !plexampVisiblyOpen() && target.pathname === activeRoute()",
+            transitions,
+        )
+        self.assertIn("event.preventDefault();", transitions)
         self.assertIn("target.pathname === activeRoute()", transitions)
         self.assertIn("window.ACPPlexamp.hide", transitions)
         self.assertIn("updateMode: false", transitions)
@@ -233,14 +241,19 @@ const fs = require('fs');
         self.assertIn("function isVisiblyOpen", persistent)
         self.assertIn("lastVisibilityRepair", persistent)
 
-    def test_hidden_weather_refresh_cannot_reload_plexamp_underlay(self):
-        weather = WEATHER_TEMPLATE.read_text(encoding="utf-8")
+    def test_weather_refresh_is_in_place_and_preserves_reading_position(self):
+        template = WEATHER_TEMPLATE.read_text(encoding="utf-8")
+        controller = WEATHER_SURFACE.read_text(encoding="utf-8")
 
-        self.assertIn("refreshOnlyWhenWeatherOwnsTheVisibleSurface", weather)
-        self.assertIn("screen.current_screen === 'weather'", weather)
-        self.assertIn("screen.recommended_screen === 'weather'", weather)
-        self.assertIn("!overlayOpen && weatherOwnsSurface", weather)
-        self.assertNotIn("setTimeout(() => {\n    window.location.reload();", weather)
+        self.assertIn("js/weather-surface.js", template)
+        self.assertNotIn("window.location.reload()", template)
+        self.assertNotIn("window.location.reload()", controller)
+        self.assertIn("function capturePosition()", controller)
+        self.assertIn("function restorePosition(position)", controller)
+        self.assertIn("currentGrid.replaceWith", controller)
+        self.assertIn("page.scrollTop = position.vertical", controller)
+        self.assertIn("rain.scrollLeft = position.rain", controller)
+        self.assertIn("!plexampOpen", controller)
 
     def test_client_cannot_manufacture_repeating_activity(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -253,7 +266,9 @@ const fs = require('fs');
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260730-playback-generation-transition-serialization", text)
+        self.assertIn("js/acp-surface-host.js", text)
+        self.assertIn("js/page-transitions.js", text)
+        self.assertLess(text.index("js/acp-surface-host.js"), text.index("js/page-transitions.js"))
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):

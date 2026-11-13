@@ -28,6 +28,7 @@
     'cover-reveal',
     'zoom',
     'blur-dissolve',
+    'spatial-row',
   ]);
 
   function normaliseMode(value, fallback = 'clock') {
@@ -52,18 +53,49 @@
     return Math.round(Math.max(0, Math.min(2000, numeric)) / 50) * 50;
   }
 
+  function normaliseNavigationDuration(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 180;
+    return Math.round(Math.max(0, Math.min(1000, numeric)) / 20) * 20;
+  }
+
+  function normaliseNavigationInactivity(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 6;
+    return Math.round(Math.max(0, Math.min(30, numeric)));
+  }
+
+  function normaliseNavigationPresentation(value) {
+    return String(value || '').trim().toLowerCase() === 'lift' ? 'lift' : 'overlay';
+  }
+
   function read() {
     const root = document.documentElement;
     const legacy = normaliseMode(root.dataset.legacyDefaultMode || 'clock');
     return {
-      startupMode: normaliseMode(root.dataset.serverStartupMode, legacy),
-      idleReturnMode: normaliseMode(root.dataset.serverIdleReturnMode, legacy),
+      startupMode: normaliseMode(root.dataset.startupMode || root.dataset.serverStartupMode, legacy),
+      idleReturnMode: normaliseMode(root.dataset.idleReturnMode || root.dataset.serverIdleReturnMode, legacy),
       daytimeTheme: normaliseDaytimeTheme(
         root.dataset.daytimeTheme || root.dataset.serverDaytimeTheme || 'classic_dark'
       ),
-      transitionStyle: normaliseStyle(root.dataset.serverTransitionStyle || 'grow-fade'),
-      transitionDurationMs: normaliseDuration(root.dataset.serverTransitionDurationMs || 300),
-      clockFormat: String(root.dataset.serverClockFormat || '24h').toLowerCase() === '12h' ? '12h' : '24h',
+      transitionStyle: normaliseStyle(
+        root.dataset.transitionStyle || root.dataset.serverTransitionStyle || 'grow-fade'
+      ),
+      transitionDurationMs: normaliseDuration(
+        root.dataset.transitionDurationMs || root.dataset.serverTransitionDurationMs || 300
+      ),
+      navigationTransitionDurationMs: normaliseNavigationDuration(
+        root.dataset.navigationTransitionDurationMs || root.dataset.serverNavigationTransitionDurationMs || 180
+      ),
+      navigationInactivitySeconds: normaliseNavigationInactivity(
+        root.dataset.navigationInactivitySeconds || root.dataset.serverNavigationInactivitySeconds || 6
+      ),
+      navigationPresentation: normaliseNavigationPresentation(
+        root.dataset.navigationPresentation || root.dataset.serverNavigationPresentation || 'overlay'
+      ),
+      clockFormat: String(
+        root.dataset.clockFormat || root.dataset.serverClockFormat || '24h'
+      ).toLowerCase() === '12h' ? '12h' : '24h',
     };
   }
 
@@ -77,6 +109,9 @@
   function apply(preferences = read()) {
     const root = document.documentElement;
     const duration = normaliseDuration(preferences.transitionDurationMs);
+    const navigationDuration = normaliseNavigationDuration(preferences.navigationTransitionDurationMs);
+    const navigationInactivity = normaliseNavigationInactivity(preferences.navigationInactivitySeconds);
+    const navigationPresentation = normaliseNavigationPresentation(preferences.navigationPresentation);
     const outgoing = Math.round(duration * 0.36);
     const incoming = Math.max(0, duration - outgoing);
 
@@ -85,8 +120,12 @@
     root.dataset.daytimeTheme = normaliseDaytimeTheme(preferences.daytimeTheme);
     root.dataset.transitionStyle = normaliseStyle(preferences.transitionStyle);
     root.dataset.transitionDurationMs = String(duration);
+    root.dataset.navigationTransitionDurationMs = String(navigationDuration);
+    root.dataset.navigationInactivitySeconds = String(navigationInactivity);
+    root.dataset.navigationPresentation = navigationPresentation;
     root.dataset.clockFormat = preferences.clockFormat === '12h' ? '12h' : '24h';
     root.style.setProperty('--acp-transition-duration', `${duration}ms`);
+    root.style.setProperty('--acp-navigation-transition-duration', `${navigationDuration}ms`);
     root.style.setProperty('--acp-transition-out-duration', `${outgoing}ms`);
     root.style.setProperty('--acp-transition-in-duration', `${incoming}ms`);
     mirrorClockFormat(root.dataset.clockFormat);
@@ -96,6 +135,9 @@
       daytimeTheme: root.dataset.daytimeTheme,
       transitionStyle: root.dataset.transitionStyle,
       transitionDurationMs: duration,
+      navigationTransitionDurationMs: navigationDuration,
+      navigationInactivitySeconds: navigationInactivity,
+      navigationPresentation,
       clockFormat: root.dataset.clockFormat,
     };
   }
@@ -108,6 +150,15 @@
       daytimeTheme: normaliseDaytimeTheme(partial.daytimeTheme ?? current.daytimeTheme),
       transitionStyle: normaliseStyle(partial.transitionStyle ?? current.transitionStyle),
       transitionDurationMs: normaliseDuration(partial.transitionDurationMs ?? current.transitionDurationMs),
+      navigationTransitionDurationMs: normaliseNavigationDuration(
+        partial.navigationTransitionDurationMs ?? current.navigationTransitionDurationMs
+      ),
+      navigationInactivitySeconds: normaliseNavigationInactivity(
+        partial.navigationInactivitySeconds ?? current.navigationInactivitySeconds
+      ),
+      navigationPresentation: normaliseNavigationPresentation(
+        partial.navigationPresentation ?? current.navigationPresentation
+      ),
       clockFormat: String(partial.clockFormat ?? current.clockFormat).toLowerCase() === '12h' ? '12h' : '24h',
     });
     window.dispatchEvent(new CustomEvent('acp:dashboard-preferences-changed', { detail: next }));
@@ -136,6 +187,9 @@
     normaliseDaytimeTheme,
     normaliseStyle,
     normaliseDuration,
+    normaliseNavigationDuration,
+    normaliseNavigationInactivity,
+    normaliseNavigationPresentation,
   };
 
   /* The server's root route redirects to /clock. A redirected /clock is therefore

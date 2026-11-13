@@ -27,7 +27,12 @@
 
     const applyValue = (value) => {
       if (value === 'any_future' || value === 'within_12h') {
-        select.value = value;
+        if (window.ACPUnifiedSettings?.applyControlValue) {
+          window.ACPUnifiedSettings.applyControlValue(select, value);
+        } else {
+          select.value = value;
+        }
+        window.ACPSettingsSelects?.refresh?.();
       }
     };
 

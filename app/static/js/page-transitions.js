@@ -10,6 +10,7 @@
   let presentationTimer = null;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
   const explicitNavigationMaxAgeMs = 15000;
+  const navigationModeTransferKey = 'a-clockwork-plex.navigation-mode-transfer';
   const leasableRoutes = new Set(['/airplay', '/clock', '/news', '/plexamp', '/settings', '/weather']);
 
   function sameOriginTarget(url) {
@@ -29,6 +30,8 @@
   }
 
   function activeRoute() {
+    const hosted = window.ACPSurfaceHost?.activeRoute?.();
+    if (hosted) return hosted;
     const page = String(document.body.dataset.activePage || '').trim().toLowerCase();
     return page ? `/${page}` : window.location.pathname;
   }
@@ -42,6 +45,52 @@
 
   function isAutomaticNavigation(options = {}) {
     return options.automatic === true || options.source === 'screen-projection';
+  }
+
+  function navigationModeOpen() {
+    return document.body.classList.contains('nav-open')
+      && document.body.classList.contains('nav-mode');
+  }
+
+  function shouldPreserveNavigation(options = {}) {
+    return !isAutomaticNavigation(options) && navigationModeOpen();
+  }
+
+  function visibleWorkspaceRoute() {
+    return plexampVisiblyOpen() ? '/plexamp' : activeRoute();
+  }
+
+  function spatialPrototypeDirection(target, mainNavLink = false) {
+    if (!mainNavLink || !navigationModeOpen()) return '';
+    if (String(preferences().transitionStyle || '').toLowerCase() !== 'spatial-row') return '';
+
+    const topology = window.ACPWorkspaceTopology;
+    const fromRoute = visibleWorkspaceRoute();
+    const toRoute = String(target?.pathname || '');
+    const path = topology?.path?.(fromRoute, toRoute) || [];
+    if (path.length < 2) return '';
+
+    const acpOnly = path.every((entry) => entry.renderer === 'acp');
+    const terminalPlexampPath = path.every((entry) => ['acp', 'plexamp'].includes(entry.renderer))
+      && path.filter((entry) => entry.renderer === 'plexamp').length === 1
+      && (
+        path[0]?.renderer === 'plexamp'
+        || path[path.length - 1]?.renderer === 'plexamp'
+      );
+
+    if (!acpOnly && !terminalPlexampPath) return '';
+    return topology.direction(fromRoute, toRoute);
+  }
+
+  function rememberNavigationMode(target) {
+    if (!navigationModeOpen() || !target || target.pathname === '/alarm') return;
+    try {
+      window.sessionStorage.setItem(navigationModeTransferKey, JSON.stringify({
+        path: target.pathname,
+        at: Date.now(),
+      }));
+    } catch (error) {
+    }
   }
 
   function preserveNightInteraction(options = {}) {
@@ -125,6 +174,7 @@
     const hydratedFallbacks = {
       airplay: 1500,
       clock: 900,
+      settings: 1800,
     };
 
     if (activePage in hydratedFallbacks) {
@@ -170,6 +220,8 @@
       if (!accepted || leaving) return;
     }
 
+    // Navigation is persistent shell chrome. Spatial and ordinary page
+    // transitions run behind it; inactivity owns when the shell hides.
     if (target.pathname === '/alarm' || options.immediate) {
       leaving = true;
       window.location.assign(target.href);
@@ -177,31 +229,97 @@
     }
 
     if (target.pathname === '/plexamp' && window.ACPPlexamp) {
-      const duration = Number(window.ACPPlexamp.show({
+      const workspacePath = window.ACPWorkspaceTopology?.path?.(
+        visibleWorkspaceRoute(),
+        '/plexamp',
+      ) || [];
+      const spatialRequested = options.spatialCommitDirection === 'forward' && workspacePath.length >= 2;
+      const showPlexamp = spatialRequested && workspacePath.length > 2
+        && typeof window.ACPPlexamp.spatialShowPath === 'function'
+        ? window.ACPPlexamp.spatialShowPath
+        : spatialRequested && typeof window.ACPPlexamp.spatialShow === 'function'
+          ? window.ACPPlexamp.spatialShow
+          : window.ACPPlexamp.show;
+      const duration = Number(await showPlexamp({
         updateMode: false,
         manual: false,
+        preserveNavigation: shouldPreserveNavigation(options),
         source: String(options.source || 'navigation-link'),
+        path: workspacePath,
       })) || 0;
       holdPresentation(duration);
       return;
     }
 
+    if (!plexampVisiblyOpen() && window.ACPSurfaceHost?.canNavigate?.(target.pathname)) {
+      const result = await window.ACPSurfaceHost.navigate(target.pathname, {
+        ...options,
+        history: true,
+      });
+      if (result?.handled) return;
+    }
+
     const overlayOpen = plexampVisiblyOpen();
     if (overlayOpen) {
+      const preserveNavigation = shouldPreserveNavigation(options);
+      const mode = target.pathname.slice(1) || 'clock';
+
       if (target.pathname === activeRoute()) {
-        const mode = target.pathname.slice(1) || 'clock';
-        const duration = Number(window.ACPPlexamp.hide?.({
+        const workspacePath = window.ACPWorkspaceTopology?.path?.('/plexamp', target.pathname) || [];
+        const spatialRequested = options.spatialCommitDirection === 'reverse' && workspacePath.length >= 2;
+        const hidePlexamp = spatialRequested && workspacePath.length > 2
+          && typeof window.ACPPlexamp.spatialHidePath === 'function'
+          ? window.ACPPlexamp.spatialHidePath
+          : spatialRequested && typeof window.ACPPlexamp.spatialHide === 'function'
+            ? window.ACPPlexamp.spatialHide
+            : window.ACPPlexamp.hide;
+        const duration = Number(await hidePlexamp({
           updateMode: false,
           targetMode: mode,
+          preserveNavigation,
           source: String(options.source || 'navigation-link'),
+          path: workspacePath,
         })) || 0;
         holdPresentation(duration);
         return;
       }
 
+      // Mounted ACP destinations can be committed underneath the persistent
+      // Plexamp layer before Plexamp reveals them. Keep the shell/navigation
+      // DOM alive instead of falling back to a full document navigation, which
+      // visibly closes and recreates the nav (most obvious on Settings).
+      if (window.ACPSurfaceHost?.canNavigate?.(target.pathname)) {
+        const result = await window.ACPSurfaceHost.navigate(target.pathname, {
+          ...options,
+          animate: false,
+          history: true,
+          source: String(options.source || 'plexamp-mounted-handoff'),
+        });
+        if (result?.handled) {
+          const workspacePath = window.ACPWorkspaceTopology?.path?.('/plexamp', target.pathname) || [];
+          const spatialRequested = options.spatialCommitDirection === 'reverse' && workspacePath.length >= 2;
+          const hidePlexamp = spatialRequested && workspacePath.length > 2
+            && typeof window.ACPPlexamp.spatialHidePath === 'function'
+            ? window.ACPPlexamp.spatialHidePath
+            : spatialRequested && typeof window.ACPPlexamp.spatialHide === 'function'
+              ? window.ACPPlexamp.spatialHide
+              : window.ACPPlexamp.hide;
+          const duration = Number(await hidePlexamp({
+            updateMode: false,
+            targetMode: mode,
+            preserveNavigation,
+            source: String(options.source || 'navigation-link'),
+            path: workspacePath,
+          })) || 0;
+          holdPresentation(duration);
+          return;
+        }
+      }
+
       leaving = true;
+      if (preserveNavigation) rememberNavigationMode(target);
       const delay = Number(
-        window.ACPPlexamp.prepareNavigation?.()
+        window.ACPPlexamp.prepareNavigation?.({ preserveNavigation })
         ?? outgoingDelay()
       );
       window.setTimeout(() => window.location.assign(target.href), Math.max(0, delay));
@@ -209,6 +327,7 @@
     }
 
     leaving = true;
+    if (shouldPreserveNavigation(options)) rememberNavigationMode(target);
     const delay = outgoingDelay();
     if (delay <= 0) {
       window.location.assign(target.href);
@@ -223,7 +342,12 @@
   window.ACPPageReady = revealPage;
   window.ACPNavigationState = {
     isLeaving: () => leaving,
-    isPresenting: () => manualClaimInFlight || presentationInFlight || leaving,
+    isPresenting: () => (
+      manualClaimInFlight
+      || presentationInFlight
+      || leaving
+      || window.ACPSurfaceHost?.isTransitioning?.() === true
+    ),
     activeRoute,
     consumeExplicitNavigation,
   };
@@ -234,10 +358,24 @@
     if (link.target && link.target !== '_self') return;
     const target = sameOriginTarget(link.href);
     if (!target) return;
-    if (target.href === window.location.href && !plexampVisiblyOpen()) return;
-    if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
+    const mainNavLink = Boolean(link.closest('.main-nav'));
+    if (!mainNavLink && !link.hasAttribute('data-page-transition')) return;
+
+    // A selected ACP destination is already the live mounted surface. Consume
+    // the click rather than allowing the browser's default same-URL navigation
+    // to hard-reload the document (which would black-flash and discard nav mode).
+    if (mainNavLink && !plexampVisiblyOpen() && target.pathname === activeRoute()) {
+      event.preventDefault();
+      return;
+    }
+
+    const spatialCommitDirection = spatialPrototypeDirection(target, mainNavLink);
+
     event.preventDefault();
-    void navigate(target.href, { source: 'navigation-link' });
+    void navigate(target.href, {
+      source: 'navigation-link',
+      ...(spatialCommitDirection ? { spatialCommitDirection } : {}),
+    });
   });
 
   window.addEventListener('pagehide', () => {

@@ -1,0 +1,14 @@
+/*
+ * B4.2 experiment: the GTK layer-shell indicator/drawer takes visual
+ * ownership ONLY while the local four-second GTK heartbeat is alive.
+ * Never use display:none: Chromium still computes the exact B3 theme
+ * palette and measured drawer geometry while controls are suppressed.
+ * The audio mixer remains independently visible when already open.
+ */
+body.acp-b4-gtk-owned:not(.nav-audio-open) .nav-backdrop,
+body.acp-b4-gtk-owned:not(.nav-audio-open) .nav-drawer,
+body.acp-b4-gtk-owned:not(.nav-audio-open) .nav-handle {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

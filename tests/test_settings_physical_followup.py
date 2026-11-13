@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import unittest
 from copy import deepcopy
@@ -78,12 +79,39 @@ default
         self.assertEqual(self.base.count("settings-physical-followup.css"), 1)
         self.assertNotIn("settings-physical-polish.js", self.base)
         self.assertNotIn("settings-physical-polish.css", self.base)
-        self.assertIn("20260802-physical-followup-v2", self.base)
+        self.assertIn("20261024-keyboard-save-toast-v1", self.base)
         self.assertIn("form.requestSubmit()", self.client)
         self.assertIn("authority.markDirty =", self.client)
         self.assertIn("keyboard-open", self.client)
-        self.assertIn("settings-save-actions", self.css)
+        self.assertIn("body.mode-settings .settings-save-actions", self.css)
+        self.assertIn("body.mode-settings .settings-save-bar", self.css)
         self.assertIn("display: none !important", self.css)
+        self.assertIn("visibility: hidden", self.css)
+        self.assertIn(
+            "body.mode-settings.settings-autosave-enabled .settings-save-bar.is-dirty",
+            self.css,
+        )
+
+    def test_keyboard_edits_do_not_expand_staged_changes_notice(self):
+        # Old bottom anchoring during OSK + new top anchoring used to turn a
+        # normal toast into a near-fullscreen panel over the time field.
+        ipad_css = Path("app/static/css/settings-ipad.css").read_text(encoding="utf-8")
+        self.assertIn("body.keyboard-open .settings-save-bar", ipad_css)
+        self.assertIn("body.mode-settings.keyboard-open .settings-save-bar {", self.css)
+        self.assertIn("bottom: auto !important;", self.css)
+        self.assertIn("height: auto !important;", self.css)
+        self.assertIn("max-height: 86px;", self.css)
+        self.assertIn(
+            "body.mode-settings.settings-autosave-enabled.keyboard-open "
+            ".settings-save-bar:not(.is-error)", self.css)
+        self.assertIn(
+            "body.mode-settings.settings-autosave-enabled.keyboard-open "
+            ".settings-save-bar.is-error", self.css)
+        self.assertIn("opacity: 0 !important;", self.css)
+        # This is presentation-only. Existing delayed save and validation
+        # still use the original controlled form submission.
+        self.assertIn("form.requestSubmit()", self.client)
+        self.assertIn("document.body.classList.contains('keyboard-open')", self.client)
 
     def test_output_trims_reuse_the_calibrated_audio_fader(self):
         self.assertIn("nav-live-fader settings-output-fader", self.client)
@@ -160,10 +188,21 @@ default
         self.assertIn("setSectionDirty", self.client)
         self.assertIn("settings-subpage-dirty-dot", self.css)
         self.assertIn("settings-option-dirty::after", self.css)
+        self.assertIn("background: var(--accent-strong)", self.css)
+        self.assertIn("border-color: var(--accent)", self.css)
+        self.assertIn("box-shadow: inset 0 0 0 1px var(--accent)", self.css)
+        self.assertNotIn("#ffe99c", self.css)
+        self.assertNotIn("rgba(255, 233, 156", self.css)
 
     def test_followup_client_has_valid_javascript_syntax(self):
+        # The development Pi intentionally has no Node.js. This must remain
+        # a real syntax assertion on Node-equipped developer/CI machines,
+        # not a FileNotFoundError that hides the other Settings results.
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js not installed; JS syntax requires a Node-equipped test runner")
         result = subprocess.run(
-            ["node", "--check", "app/static/js/settings-physical-followup.js"],
+            [node, "--check", "app/static/js/settings-physical-followup.js"],
             check=False,
             capture_output=True,
             text=True,
