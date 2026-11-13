@@ -1,0 +1,11 @@
+Round,Style,Attempt,Visual result,Page duration (ms),Drawer open/close (ms),Saved settings match,Routes completed,Native page effect (ms),API errors,Renderer,Revision,Test date,Inputs,Issue,Next action,Command output,Recording
+1,Grow and fade,GF-001,FAIL,2000,1000,true,6,2000,0,Native View Transitions,19f05517,2026-11-13,F keys + drawer,Outgoing page ghosts/flashes back at completion on all six routes.,Retest Grow and fade with the prepared-copy candidate before continuing the matrix.,Pasted text(20261113-003706).txt,WayVNC - TigerVNC 2026-11-13 00-34-31.mp4
+1,Grow and fade,GF-002,AWAITING RETEST,2000,1000,,,,,Prepared DOM copies (candidate),grow-fade-copies-v5,,F keys + drawer (planned),Candidate for the source-page completion flash.,Repeat the six routes at 2000/1000ms and inspect the final handoff.,,
+1,Crossfade,CF-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Horizontal slide,HS-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Vertical lift,VL-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Cover reveal,CR-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Zoom,ZM-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Blur dissolve,BD-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Spatial row,SR-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,
+1,Instant,IN-001,NOT TESTED,2000,1000,,,,,,,,F keys + drawer (planned),,Test after Grow and fade passes round 1. Earlier preview results do not count as this round.,,

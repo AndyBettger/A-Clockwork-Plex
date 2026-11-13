@@ -663,7 +663,7 @@
       .filter(({ top, left }) => top || left);
   }
 
-  function createCoverPresentation(surface, edge, width, height) {
+  function createCoverPresentation(surface, edge, width, height, className) {
     const offsets = captureCoverScrollOffsets();
     const layer = cloneCurrentSpatialLayer(surface);
     // Keep the full-size page stationary inside a changing-width mask. A fixed
@@ -677,7 +677,7 @@
       layer.style.setProperty(key, value, 'important');
     });
     const mask = document.createElement('div');
-    mask.className = 'acp-webkit-news-cover-viewport';
+    mask.className = className;
     mask.setAttribute('aria-hidden', 'true');
     mask.inert = true;
     Object.assign(mask.style, {
@@ -702,25 +702,32 @@
     };
   }
 
-  async function newsLiveCoverCommit(from, commit) {
-    // Developer-only News comparison. Avoid native snapshots AND animated
-    // clip-paths while preserving the covered content preparation boundary.
+  async function preparedPageCopyCommit(from, to, style, commit) {
+    // Developer-only copies with explicit final styles and a covered handoff.
+    // Grow/fade avoids native snapshot teardown; Cover retains its width masks.
+    const cover = style === 'cover-reveal';
+    const className = cover ? 'acp-webkit-news-cover-viewport' : 'acp-webkit-page-copy-viewport';
     const width = window.innerWidth;
     const height = window.innerHeight;
     const duration = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
       ? 0 : applicationTransitionDurationMs();
     const previousVisibility = screen.style.visibility;
     const started = performance.now();
-    const state = { from, phase: 'preparing', preparationMs: null, durationMs: duration };
-    window.__acpWebkitNewsLiveCoverLast = state;
-    window.__acpWebkitNewsLiveCoverApplied = (window.__acpWebkitNewsLiveCoverApplied || 0) + 1;
+    const state = { from, to, style, phase: 'preparing', preparationMs: null, durationMs: duration };
+    if (cover) {
+      window.__acpWebkitNewsLiveCoverLast = state;
+      window.__acpWebkitNewsLiveCoverApplied = (window.__acpWebkitNewsLiveCoverApplied || 0) + 1;
+    } else {
+      window.__acpWebkitPageCopiesLast = state;
+      window.__acpWebkitPageCopiesApplied = (window.__acpWebkitPageCopiesApplied || 0) + 1;
+    }
     const masks = [];
     const animations = [];
     const cancelAnimations = () => {
       animations.splice(0).forEach((animation) => animation.cancel());
     };
     try {
-      const outgoing = createCoverPresentation(from, 'right', width, height);
+      const outgoing = createCoverPresentation(from, cover ? 'right' : 'left', width, height, className);
       masks.push(outgoing.mask);
       document.body.appendChild(outgoing.mask);
       outgoing.restoreScroll();
@@ -731,23 +738,25 @@
       screen.getBoundingClientRect();
       await nextFrame();
       await nextFrame();
-      const incoming = createCoverPresentation('news', 'left', width, height);
+      const incoming = createCoverPresentation(to, 'left', width, height, className);
       masks.push(incoming.mask);
-      incoming.mask.style.width = '0px';
+      if (cover) incoming.mask.style.width = '0px';
+      else incoming.mask.style.opacity = '0';
       document.body.appendChild(incoming.mask);
       incoming.restoreScroll();
       screen.style.visibility = 'hidden';
       state.preparationMs = Math.round(performance.now() - started);
       state.phase = 'animating';
 
-      const outgoingFrames = [
+      const frames = cover ? null : ordinaryTransitionFrames(style);
+      const outgoingFrames = cover ? [
         { width: `${width}px`, opacity: 1, borderRadius: '0px' },
         { width: '0px', opacity: .15, borderRadius: '22px' },
-      ];
-      const incomingFrames = [
+      ] : frames.outgoing;
+      const incomingFrames = cover ? [
         { width: '0px', opacity: .65, borderRadius: '22px' },
         { width: `${width}px`, opacity: 1, borderRadius: '0px' },
-      ];
+      ] : frames.incoming;
       // Underlying styles are the FINAL state. Cancelling a filled animation
       // must never uncover a clipped starting frame during the live handoff.
       Object.assign(outgoing.mask.style, outgoingFrames[1]);
@@ -784,6 +793,10 @@
       screen.style.visibility = previousVisibility;
       masks.forEach((mask) => mask.remove());
     }
+  }
+
+  async function newsLiveCoverCommit(from, commit) {
+    await preparedPageCopyCommit(from, 'news', 'cover-reveal', commit);
   }
 
   async function stagePreparedViewTransition(from, commit) {
@@ -911,6 +924,9 @@
           async liveCommit({ commit } = {}) {
             await ordinaryLiveCommit(from, commit);
           },
+          ...(window.__acpWebkitGrowFadeCopyTrial === true && applicationTransitionStyle() === 'grow-fade'
+            ? { copyCommit: ({ commit }) => preparedPageCopyCommit(from, surface, 'grow-fade', commit) }
+            : {}),
           ...(surface === 'news' && window.__acpWebkitNewsLiveCoverTrial === true
             && applicationTransitionStyle() === 'cover-reveal'
             ? { coverCommit: ({ commit }) => newsLiveCoverCommit(from, commit) }

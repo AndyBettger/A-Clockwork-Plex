@@ -409,6 +409,7 @@ CONFIGURED_TRANSITION_TRIAL_SCRIPT = r"""
   window.__acpWebkitContentReadyTrial = true;
   window.__acpWebkitNewsLiveCoverTrial = true;
   window.__acpWebkitFrameStripTrial = true;
+  window.__acpWebkitGrowFadeCopyTrial = true;
 })()
 """
 
@@ -575,6 +576,10 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    newsLiveCoverApplied: window.__acpWebkitNewsLiveCoverApplied || 0,
    newsLiveCover: window.__acpWebkitNewsLiveCoverLast || null,
    newsCoverCount: document.querySelectorAll('.acp-webkit-news-cover-viewport').length,
+   pageCopiesTrial: window.__acpWebkitGrowFadeCopyTrial === true,
+   pageCopiesApplied: window.__acpWebkitPageCopiesApplied || 0,
+   pageCopies: window.__acpWebkitPageCopiesLast || null,
+   pageCopyCount: document.querySelectorAll('.acp-webkit-page-copy-viewport').length,
    newsLayout: news ? {
      page: rect(news), transform: getComputedStyle(news).transform,
      rail: rect(news.querySelector('.news-rail')),
@@ -976,6 +981,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("newsLayerTrial"),
                     state.get("newsLiveCoverTrial"), state.get("newsLiveCoverApplied"),
                     state.get("newsCoverCount"),
+                    state.get("pageCopiesApplied"), state.get("pageCopyCount"),
+                    json.dumps(state.get("pageCopies"), sort_keys=True),
                     json.dumps(state.get("newsLiveCover"), sort_keys=True),
                     json.dumps(state.get("newsLayout"), sort_keys=True),
                     state.get("outgoingCloneCount"),
@@ -1177,7 +1184,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         if args.surface_transition_mode == "configured":
             print("ACP WebKit probe: Settings-driven profile: saved style/page/nav durations; "
                   "no forced style. Accepted content staging, Cover-only News copies, "
-                  "F10 spatial row and F11 navigation enabled. F8 reloads saved Settings "
+                  "Grow/fade copy candidate, F10 spatial row and F11 navigation enabled. F8 reloads saved Settings "
                   "on Clock; session deadline unchanged. Save changes in the normal ACP "
                   "window; this proxy still refuses writes. Check configuredSettings, "
                   "nativeTransitions and renderer duration metrics.", flush=True)

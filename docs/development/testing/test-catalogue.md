@@ -1,4 +1,16 @@
 
+## 13 November 2026 — Grow/fade visual FAIL at 2000/1000ms; copy retest pending
+
+**Round-1 authority:** all nine styles at **page 2000ms / drawer open-close 1000ms**; quicker values follow only after all pass. [CSV attempt log](webkit-transition-results.csv) preserves GF-001 FAIL, GF-002 AWAITING RETEST and eight NOT TESTED rows, source filenames and blank unmeasured values. Earlier Cover acceptance is separate from this standardized round.
+
+**Pi at `19f05517`:** matching 00:34:31 video (**56.41s, nominal 59.94fps**) and 00:37:06 output. Six routes/native effects complete without rejection/reload/retained guards. Saved/effective/CSS timings match **2000/1000ms**, old/new native page effects report **2000ms**, drawer/handle computed motion **1s**. Configuration wiring PASS; visual FAIL: operator reports old-page completion flashes on both inputs; first fade visibly ghosts Clock digits over Weather around 13.50–13.80s. Content waits all settled, so no longer wait is indicated. Implementation CI: **1667 tests, 3 skips PASS**.
+
+**Staged correction:** configured Grow/fade only uses prepared source/destination copies and the same frame/easing/duration values. Final opacity/transform underlies the filled effects before cancellation, then the real page paints under the complete target copy before removal. New `pageCopies` phase/count/budget telemetry; native API is bypassed only for this candidate. Shared copy helper retains News Cover width-mask behavior; all other styles stay on their previous renderer.
+
+**Local checks:** **31 host + 36 probe PASS**, 36 executed lifecycle Node cases (six new copy/real-host/cleanup cases), twelve profile cases, and existing Cover/Spatial/pointer checks. CSV round-trip: ten attempts, nine styles, correct failed/pending statuses and timing baseline. Changed syntax, six injected scripts and **14 documentation checks PASS**. Full CI gates publication; these checks do not validate Pi pixels.
+
+**Next check:** [same configured command](webkit-transition-settings.md), pull/restart once, Grow/fade retained at 2000/1000ms. Six keyboard/drawer routes only; verify copy applied six/released/no masks, no native transitions, single commit/handoff and no old-page ghost after motion. GF-002 remains pending until reviewed; stop on recurrence. Other styles/faster timings remain untested.
+
 ## 12 November 2026 — Opening hover bounded PASS; Settings transition matrix staged
 
 **Physical result at `bb82eeb4`:** 21:16:59 video (**51.61s, nominal 120fps**) and 21:18:02 output. Operator reports improvement; frame review/pointer telemetry support clear unarmed openings, intentional armed AirPlay hover and a correct selected route. Six drawer open/close pairs; three drawer routes, **3 changed/settled**, **2 native + 1 News copy**, no rejection/reload or retained covers. News remains correct; content/logo settled in 666ms behind 987ms preparation. Accept opening-hover behavior within this comparison. Exact implementation CI: **1666 tests, 3 skips PASS**.

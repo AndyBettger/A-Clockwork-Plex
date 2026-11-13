@@ -1,6 +1,6 @@
 # A Clockwork Plex — Project Roadmap
 
-**Updated:** 12 November 2026 · **Published release:** v0.4.0 (23 August 2026)\
+**Updated:** 13 November 2026 · **Published release:** v0.4.0 (23 August 2026)\
 **Active development branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > This is the **project-level overview**, not a test diary. A Clockwork Plex is currently running on a **development/test Raspberry Pi**, not yet a signed-off bedside appliance. Feature-specific requirements, acceptance results, defects and next checks belong in the linked [feature roadmaps](features/README.md) and [testing catalogue](../development/testing/test-catalogue.md).
@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** all saved transition choices and independent page/navigation timings. **Opening hover and News DOM-copy Cover Reveal pass bounded Pi checks**, alongside the accepted covered handoff and F10+F11 reference. A Settings-driven WebKit profile and nine-style/timing matrix are staged; the old forced-Cover profile did not verify saved selection. News control parity, overall performance and B4.4 startup remain open.
+- **Next milestone:** fix the Grow/fade completion flash before continuing the style matrix. Round 1 is **page 2000ms / drawer open-close 1000ms** for every style. Saved style/timing wiring passes the first Pi run, but native Grow/fade flashes the outgoing page back; a prepared-copy correction awaits retest. [CSV results](../development/testing/webkit-transition-results.csv) preserve failed/pending attempts. Opening hover, News Cover and F10+F11 remain bounded preview references; overall performance and B4.4 remain open.
 
 ## Feature portfolio
 
@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | F10/F11, covered handoff, News copies and opening hover bounded PASS; saved-style/timing matrix staged. Controls/performance, native shell ownership, Audio overlay and installer/startup remain later gates |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Settings wiring PASS at 2000/1000ms; Grow/fade visual FAIL, copy correction awaiting retest; eight styles untested in Round 1. Controls/performance, native shell ownership, Audio overlay and startup remain later gates |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
@@ -34,7 +34,7 @@
 
 **Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
-1. Complete the [#94 GTK3/WebKitGTK developer prototype](features/acp-shell-native-plexamp.md): accepted layout/touch, F10+F11, News copies and opening hover; verify the [saved transition/timing matrix](../development/testing/webkit-transition-settings.md), News controls and page-row/resource performance. Retain Chromium rollback; Squeekboard is a later integration gate.
+1. Complete the [#94 GTK3/WebKitGTK developer prototype](features/acp-shell-native-plexamp.md): retest the Grow/fade completion correction, then continue the [saved-style matrix](../development/testing/webkit-transition-settings.md) at 2000/1000ms before faster rounds. Accepted layout/touch, F10+F11, News copies and opening hover remain references. News controls/resources and Squeekboard integration remain gates; retain Chromium rollback.
 2. Connect the accepted GTK navigation to the WebKit host and native Plexamp, then build an independent Audio overlay using the existing backend and EQ controls. Recheck no duplicate navigation and no unintended focus change.
 3. Prototype a coordinated visual reveal for ACP ↔ native Plexamp. True live window embedding is **not** available through GTK3 on native Wayland; any snapshot-assisted Spatial Row is optional and must pass resource/focus tests.
 4. After physical acceptance, complete B4.4 supervised startup, recovery, installer integration and native Plexamp Backup/Restore/Reset. Retain the known-good fallback.

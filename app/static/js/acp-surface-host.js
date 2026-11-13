@@ -143,6 +143,8 @@
           direction: spatialCommitDirection,
           commit,
         });
+      } else if (motionEnabled(options) && typeof prepared.copyCommit === 'function') {
+        await prepared.copyCommit({ host, surface, from, options, commit });
       } else if (motionEnabled(options) && typeof prepared.coverCommit === 'function') {
         // Optional prepared-page comparison: presentation copies below live
         // shell chrome, without native View Transition snapshot capture.

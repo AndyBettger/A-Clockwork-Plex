@@ -91,6 +91,7 @@ test('configured profile preserves all nine saved choices and independent page/n
     assert.equal(f.window.__acpWebkitContentReadyTrial, true);
     assert.equal(f.window.__acpWebkitNewsLiveCoverTrial, true);
     assert.equal(f.window.__acpWebkitFrameStripTrial, true);
+    assert.equal(f.window.__acpWebkitGrowFadeCopyTrial, true);
     assert.ok(f.flags.has('acp-webkit-layout-nav-trial'));
     const sampled = JSON.parse(vm.runInContext(metrics, f.context)).configuredSettings;
     assert.equal(sampled.matches, true);
@@ -178,6 +179,7 @@ test('profile does nothing without explicit surface trial installation', () => {
   assert.equal(f.observers.length, 0);
   assert.equal(f.document.startViewTransition, f.original);
   assert.equal(f.window.__acpWebkitFrameStripTrial, undefined);
+  assert.equal(f.window.__acpWebkitGrowFadeCopyTrial, undefined);
 });
 
 test('native transition identity, this, arguments and promises are preserved', async () => {
@@ -308,6 +310,9 @@ test('News geometry sampling is passive, excludes the source copy and caps card 
   f.window.__acpWebkitNewsLiveCoverApplied = 2;
   f.window.__acpWebkitNewsLiveCoverLast = { from: 'weather', phase: 'animating', durationMs: 2000 };
   f.window.ACPNavPointerFeedback = { status: () => ({ open: true, armed: false, hovered: null }) };
+  f.window.__acpWebkitGrowFadeCopyTrial = true;
+  f.window.__acpWebkitPageCopiesApplied = 6;
+  f.window.__acpWebkitPageCopiesLast = { from: 'news', to: 'clock', style: 'grow-fade', phase: 'released', durationMs: 2000 };
   const actual = JSON.parse(vm.runInContext(metrics, f.context));
   assert.equal(actual.newsLayerTrial, true);
   assert.equal(actual.newsLiveCoverTrial, true);
@@ -315,6 +320,10 @@ test('News geometry sampling is passive, excludes the source copy and caps card 
   assert.equal(actual.newsLiveCover.phase, 'animating');
   assert.equal(actual.newsCoverCount, 2);
   assert.deepEqual(actual.navPointerFeedback, { open: true, armed: false, hovered: null });
+  assert.equal(actual.pageCopiesTrial, true);
+  assert.equal(actual.pageCopiesApplied, 6);
+  assert.equal(actual.pageCopies.phase, 'released');
+  assert.equal(actual.pageCopyCount, 0);
   assert.equal(actual.newsLayout.transform, 'matrix(1, 0, 0, 1, 0, 0)');
   assert.equal(actual.newsLayout.cards.length, 3);
   assert.equal(actual.newsLayout.cards[0].box.width, 123.5);

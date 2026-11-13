@@ -16,7 +16,7 @@ const deferred = () => {
 };
 const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
 
-function fixture({ enabled = true, liveCover = false, duration = 2000, style = 'cover-reveal' } = {}) {
+function fixture({ enabled = true, liveCover = false, growCopies = false, duration = 2000, style = 'cover-reveal' } = {}) {
   const calls = [], registry = new Map(), timers = new Map();
   const refresh = deferred(), forecast = deferred(), completion = deferred(), image = deferred();
   let now = 0, timerId = 0;
@@ -37,6 +37,8 @@ function fixture({ enabled = true, liveCover = false, duration = 2000, style = '
             this.cancelled = true;
             this.cancelWidth = node.style.width;
             this.cancelVisibility = screen.style.visibility;
+            this.cancelOpacity = node.style.opacity;
+            this.cancelTransform = node.style.transform;
             done.reject(new Error('animation cancelled'));
           } };
         animations.push(animation);
@@ -56,6 +58,7 @@ function fixture({ enabled = true, liveCover = false, duration = 2000, style = '
   const window = {
     __acpWebkitContentReadyTrial: enabled,
     __acpWebkitNewsLiveCoverTrial: liveCover,
+    __acpWebkitGrowFadeCopyTrial: growCopies,
     innerWidth: 853, innerHeight: 480,
     getComputedStyle: () => ({ getPropertyValue: () => `${duration}ms` }),
     ACPWeatherSurface: { refresh: () => { calls.push('weather-refresh'); return refresh.promise; } },
@@ -94,6 +97,8 @@ function fixture({ enabled = true, liveCover = false, duration = 2000, style = '
   // Execute the actual CSS duration reader as well as the renderer/lifecycle.
   vm.runInContext(source.slice(source.indexOf('  function applicationTransitionDurationMs('),
     source.indexOf('  function nextFrame(')), context);
+  vm.runInContext(source.slice(source.indexOf('  function ordinaryTransitionFrames('),
+    source.indexOf('  function applyInitialFrame(')), context);
   vm.runInContext(preparation, context);
   return { window, registry, calls, timers, refresh, forecast, completion, image,
     context, guards, body, screen, scroller, animations,
@@ -489,6 +494,114 @@ test('News Cover uses the actual CSS duration, including zero and seconds units'
     } else assert.equal(f.animations.length, 0);
     await pending;
     assert.equal(f.window.__acpWebkitNewsLiveCoverLast.durationMs, expected);
+  }
+});
+
+test('Grow/fade copy hook is opt-in and cannot replace another configured style', async () => {
+  const normal = fixture({ style: 'grow-fade' });
+  assert.equal((await normal.registry.get('weather').prepare()).copyCommit, undefined);
+  for (const style of ['crossfade', 'horizontal-slide', 'vertical-lift', 'zoom',
+    'blur-dissolve', 'spatial-row', 'none', 'cover-reveal']) {
+    const f = fixture({ growCopies: true, liveCover: true, style });
+    assert.equal((await f.registry.get('news').prepare()).copyCommit, undefined);
+  }
+});
+
+test('Grow/fade uses the existing frames and keeps final opacity/transform through cancellation', async () => {
+  const f = fixture({ growCopies: true, style: 'grow-fade' });
+  const parent = {}; f.screen.parentNode = parent;
+  const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
+  const pending = prepared.copyCommit({ commit: async () => {} });
+  await flush();
+  assert.equal(f.body.children.length, 2);
+  assert.ok(f.body.children.every(mask => mask.className === 'acp-webkit-page-copy-viewport'));
+  assert.equal(f.animations[0].frames[1].opacity, 0);
+  assert.equal(f.animations[0].frames[1].transform, 'translateY(-7px) scale(.985)');
+  assert.equal(f.animations[1].frames[0].transform, 'translateY(10px) scale(.976)');
+  assert.equal(f.screen.parentNode, parent);
+  f.animations.forEach(animation => animation.resolve());
+  await pending;
+  assert.equal(f.animations[0].cancelOpacity, 0, 'outgoing copy stays invisible when fill is cancelled');
+  assert.equal(f.animations[1].cancelOpacity, 1);
+  assert.equal(f.animations[1].cancelTransform, 'none');
+  assert.ok(f.animations.every(animation => animation.cancelVisibility === 'hidden'));
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.screen.style.visibility, '');
+  assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'released');
+  assert.equal(f.window.__acpWebkitPageCopiesLast.style, 'grow-fade');
+});
+
+test('real host completes all six Grow/fade routes with one commit each and no native snapshots', async () => {
+  const f = fixture({ growCopies: true, liveCover: true, style: 'grow-fade' });
+  const native = installRealHost(f);
+  f.context.document.documentElement.dataset.transitionStyle = 'grow-fade';
+  f.refresh.resolve(true); f.forecast.resolve(); f.completion.resolve(); f.image.resolve();
+  const routes = ['weather', 'news', 'clock', 'weather', 'news', 'clock'];
+  for (const [index, target] of routes.entries()) {
+    const start = f.animations.length;
+    const pending = f.window.ACPSurfaceHost.navigate(target, { history: false,
+      source: index < 3 ? 'webkit-read-only-surface-trial' : 'navigation-link' });
+    await flush();
+    assert.equal(f.window.ACPSurfaceHost.isTransitioning(), true);
+    assert.equal(f.animations.length - start, 2);
+    f.animations.slice(start).forEach(animation => {
+      assert.equal(animation.timing.duration, 2000); animation.resolve();
+    });
+    assert.equal((await pending).accepted, true);
+    assert.equal(f.window.ACPSurfaceHost.activeSurface(), target);
+    assert.equal(f.window.__acpWebkitPageCopiesApplied, index + 1);
+    assert.equal(f.window.__acpWebkitPageCopiesLast.to, target);
+    assert.equal(f.body.children.length, 0);
+  }
+  assert.equal(native.nativeUpdate(), null);
+  assert.equal(f.window.__acpWebkitNewsLiveCoverApplied, undefined);
+  assert.equal(f.window.__acpWebkitCoverStageApplied, undefined);
+  assert.equal(f.calls.filter(call => call === 'commit').length, 6);
+  assert.equal(f.calls.filter(call => call === 'acp:surface-settled').length, 6);
+});
+
+test('Grow/fade background navigation bypasses copies and native capture', async () => {
+  const f = fixture({ growCopies: true, style: 'grow-fade' });
+  const native = installRealHost(f);
+  f.context.document.documentElement.dataset.transitionStyle = 'grow-fade';
+  f.refresh.resolve(true); f.forecast.resolve(); f.completion.resolve();
+  assert.equal((await f.window.ACPSurfaceHost.navigate('weather', { history: false, animate: false })).accepted, true);
+  assert.equal(native.nativeUpdate(), null);
+  assert.equal(f.animations.length, 0);
+  assert.equal(f.window.__acpWebkitPageCopiesApplied, undefined);
+});
+
+test('Grow/fade obeys short, long, zero and reduced-motion duration budgets', async () => {
+  for (const [duration, reduced] of [[300, false], [1200, false], [2000, false], [0, false], [2000, true]]) {
+    const f = fixture({ growCopies: true, duration, style: 'grow-fade' });
+    f.window.matchMedia = () => ({ matches: reduced });
+    const prepared = await f.registry.get('clock').prepare({ from: 'news' });
+    const pending = prepared.copyCommit({ commit: async () => {} });
+    await flush();
+    const expected = reduced ? 0 : duration;
+    assert.equal(f.animations.length, expected ? 2 : 0);
+    f.animations.forEach(animation => {
+      assert.equal(animation.timing.duration, expected); animation.resolve();
+    });
+    await pending;
+    assert.equal(f.window.__acpWebkitPageCopiesLast.durationMs, expected);
+    assert.equal(f.body.children.length, 0);
+  }
+});
+
+test('Grow/fade preparation and final handoff failures free both copies and prior visibility', async () => {
+  for (const failure of ['commit', 'handoff']) {
+    const f = fixture({ growCopies: true, style: 'grow-fade', duration: 0 });
+    f.screen.style.visibility = 'visible';
+    let ticks = 0;
+    f.context.nextFrame = async () => { if (++ticks === 3) throw new Error('handoff'); };
+    const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
+    await assert.rejects(prepared.copyCommit({ commit: async () => {
+      if (failure === 'commit') throw new Error('commit');
+    } }), new RegExp(failure));
+    assert.equal(f.body.children.length, 0);
+    assert.equal(f.screen.style.visibility, 'visible');
+    assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'failed');
   }
 });
 
