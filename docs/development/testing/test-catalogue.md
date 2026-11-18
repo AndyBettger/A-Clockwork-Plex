@@ -1,4 +1,21 @@
 
+## 18 November 2026 — Grow and fade passes Round 1
+
+**GF-004 on `521535c6`, plexamp-bedroom.** The 02:16:13 command output and 02:15:19 WayVNC recording (43.28s) cover all six routes on WebKitGTK 2.54.0 at 853×480 with forced SHM. The saved and effective style was `grow-fade`. The saved and CSS timings were 2000ms for the page and 1000ms for drawer open/close. The drawer and handle both reported a 1s transition. All six routes changed and settled within the same document. All six used `frame-transform`. Native transitions, route failures and retained page copies finished at zero.
+
+| Input | Route | Preparation (ms) | Frame loop (ms) | Callbacks, GF-003 → GF-004 | Longest gap (ms), GF-003 → GF-004 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| F2 | Clock → Weather | 641 | 2023 | 10 → 49 | 296 → 92 |
+| F3 | Weather → News | 407 | 2005 | 7 → 46 | 504 → 113 |
+| F1 | News → Clock | 280 | 2016 | 10 → 49 | 276 → 109 |
+| Drawer | Clock → Weather | 376 | — | 10 → — | 281 → — |
+| Drawer | Weather → News | 379 | 2035 | 7 → 47 | 478 → 136 |
+| Drawer | News → Clock | 286 | 2020 | 10 → 45 | 317 → 113 |
+
+Preparation and frame-loop elapsed times are from GF-004. Drawer Clock → Weather had reached 39 callbacks and a 97ms longest gap when last sampled in motion. The route history confirms it settled before the next selection. Its final counters fall between log samples, so the CSV aggregates cover the other five routes. All five finished with the incoming copy fully opaque at its final position and the outgoing copy fully transparent.
+
+The operator found the motion smoother. In the recording, Weather fades into News around 16–18s by F3 and 32–34s by drawer. The cards stay aligned and the outgoing page stays gone after each handoff. **Round 1 visual PASS** for Grow and fade. Crossfade is next at the same timings. [Settings procedure](webkit-transition-settings.md) · [Results CSV](webkit-transition-results.csv)
+
 ## 18 November 2026 — Grow/fade frame timings on the Pi
 
 **GF-003 on `d5883158`.** The 01:34:23 output and 01:33:05 WayVNC recording (60.79s) cover WebKitGTK 2.54.0, forced SHM and the 853×480 fullscreen preview. Six routes changed and settled, each using `frame-layout` with a 2000ms budget. Native transitions, route failures and retained copies all finished at zero. Saved/effective/CSS page and drawer timings matched 2000/1000ms. Weather readiness settled in 54/51ms and News in 81/113ms, in keyboard/drawer order.

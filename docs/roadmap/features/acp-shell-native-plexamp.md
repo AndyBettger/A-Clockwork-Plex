@@ -5,6 +5,12 @@
 **Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
 
 
+## 18 November 2026 — Grow and fade passes Round 1 on the Pi
+
+**GF-004 passed on `521535c6` at page 2000ms and drawer open/close 1000ms.** The three F-key routes and three drawer routes all settled. The operator saw smoother motion, and the recording shows News coming into view and staying there on both entries. Weather → News went from 7 to 46 frame callbacks by F3 and from 7 to 47 by drawer. The longest gaps fell from 504 to 113ms and from 478 to 136ms respectively. The log contains final frame timings for five routes and an in-progress sample for the first drawer route. [Six-route comparison](../../development/testing/test-catalogue.md#18-november-2026--grow-and-fade-passes-round-1)
+
+**Crossfade (CF-001) is next.** Select it in the normal ACP Motion settings and keep both durations. Look for an opacity-only blend with both pages stationary and the destination still visible after completion. Eight styles await their first Round 1 run. [Pi procedure](../../development/testing/webkit-transition-settings.md) · [Results CSV](../../development/testing/webkit-transition-results.csv)
+
 ## 18 November 2026 — Grow/fade handoff passes on the Pi, motion still stutters
 
 **GF-003 on `d5883158`.** The operator reports that the old page stayed gone with both inputs. The recording shows a stepped fade on both Weather → News entries, around 20–22s and 42–44s. News remains visible after each fade. All six `frame-layout` transitions released, with zero retained copies, native transitions or route failures. Saved and effective Grow/fade settings matched the CSS at **2000ms page / 1000ms drawer open-close**.

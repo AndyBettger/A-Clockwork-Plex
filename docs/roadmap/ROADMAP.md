@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone** — smooth Grow and fade at **page 2000ms / drawer open-close 1000ms**. GF-003 cleared the old-page flash on the Pi through keys and drawer. Weather → News still paused for nearly half a second between animation updates. GF-004 keeps the working handoff and moves two fixed-size page copies. Its Pi retest comes before the other eight styles and the faster timing rounds. [Round 1 results CSV](../development/testing/webkit-transition-results.csv)
+- **Next milestone** — test Crossfade on the Pi at **page 2000ms / drawer open-close 1000ms**. Grow and fade passed Round 1 on all six keyboard and drawer routes. Both entries into News were smoother and the outgoing page stayed gone. Crossfade is the second of nine styles at these settings. [Round 1 results CSV](../development/testing/webkit-transition-results.csv)
 
 ## Feature portfolio
 
@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Settings and Grow/fade handoff pass at 2000/1000ms. Grow/fade motion still stutters. GF-004 awaits Pi comparison. Controls, resources, native shell ownership, Audio overlay and startup follow. |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Grow and fade passed with saved 2000/1000ms timings. Crossfade is next. Controls, resources, native shell ownership, Audio overlay and startup follow. |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
@@ -34,7 +34,7 @@
 
 **Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
-1. Compare GF-004 Grow/fade smoothness and handoff with GF-003 on the Pi, then continue the [saved-style matrix](../development/testing/webkit-transition-settings.md) at 2000/1000ms. The [#94 GTK3/WebKitGTK prototype](features/acp-shell-native-plexamp.md) also needs News control, resource and Squeekboard integration checks. Retain Chromium rollback.
+1. Run Crossfade (CF-001) through the same six routes at 2000/1000ms. Continue the [saved-style matrix](../development/testing/webkit-transition-settings.md) in order, moving to faster timings once all nine styles pass. The [#94 GTK3/WebKitGTK prototype](features/acp-shell-native-plexamp.md) also needs News control, resource and Squeekboard integration checks. Retain Chromium rollback.
 2. Connect the accepted GTK navigation to the WebKit host and native Plexamp, then build an independent Audio overlay using the existing backend and EQ controls. Recheck no duplicate navigation and no unintended focus change.
 3. Prototype a coordinated visual reveal for ACP ↔ native Plexamp. True live window embedding is **not** available through GTK3 on native Wayland; any snapshot-assisted Spatial Row is optional and must pass resource/focus tests.
 4. After physical acceptance, complete B4.4 supervised startup, recovery, installer integration and native Plexamp Backup/Restore/Reset. Retain the known-good fallback.
