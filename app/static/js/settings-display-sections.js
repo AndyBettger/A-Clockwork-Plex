@@ -22,6 +22,7 @@
     ['cover-reveal', 'Cover reveal'],
     ['zoom', 'Zoom'],
     ['blur-dissolve', 'Blur dissolve'],
+    ['spatial-row', 'Spatial row (prototype)'],
     ['instant', 'Instant'],
   ];
 
@@ -40,26 +41,44 @@
   function restoreMotionControls(card) {
     const style = card.querySelector('[data-setting-path="display.transition_style"]');
     if (style) {
-      const current = style.value;
-      style.replaceChildren(...TRANSITION_OPTIONS.map(([value, label]) => {
+      const current = style.value === 'none' ? 'instant' : style.value;
+      TRANSITION_OPTIONS.forEach(([value, label]) => {
+        if (style.querySelector(`option[value="${value}"]`)) return;
         const option = document.createElement('option');
         option.value = value;
         option.textContent = label;
-        return option;
-      }));
+        style.appendChild(option);
+      });
       if (TRANSITION_OPTIONS.some(([value]) => value === current)) style.value = current;
     }
 
-    const duration = card.querySelector('[data-setting-path="display.transition_duration_ms"]');
-    if (duration) {
-      duration.type = 'range';
+    const durationFields = [
+      ['display.transition_duration_ms', '2000', '50', 'Transition duration in milliseconds'],
+      ['display.navigation_transition_duration_ms', '1000', '20', 'Navigation transition duration in milliseconds'],
+      ['display.navigation_inactivity_seconds', '30', '1', 'Navigation inactivity time in seconds'],
+    ];
+    durationFields.forEach(([path, maximum, step, label]) => {
+      const duration = card.querySelector(`[data-setting-path="${path}"]`);
+      if (!duration) return;
+      const currentValue = String(duration.value ?? '').trim();
+
+      // Set the range bounds before changing the input type. Chromium applies
+      // the HTML range defaults (0..100) immediately when type becomes range;
+      // changing type first can therefore clamp an already-hydrated value.
       duration.min = '0';
-      duration.max = '2000';
-      duration.step = '50';
+      duration.max = maximum;
+      duration.step = step;
+      duration.type = 'range';
+
+      if (currentValue !== '' && Number.isFinite(Number(currentValue))) {
+        duration.value = currentValue;
+      }
+
       duration.removeAttribute('inputmode');
       duration.removeAttribute('data-keyboard');
-      duration.setAttribute('aria-label', 'Transition duration in milliseconds');
-    }
+      duration.setAttribute('aria-label', label);
+      window.ACPSettingsRangeTheme?.paint?.(duration);
+    });
   }
 
   function openSubpage(panel, overview, key) {
@@ -143,10 +162,16 @@
     const display = snapshot?.settings?.display;
     if (display) {
       const value = String(display.daytime_theme || 'classic_dark');
-      select.value = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
+      const next = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
         ? value
         : 'classic_dark';
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(select, next);
+      } else {
+        select.value = next;
+      }
       applyDaytimeTheme(select);
+      window.ACPSettingsSelects?.refresh?.();
       return;
     }
     if (attempts > 0) window.setTimeout(() => populateDaytimeTheme(select, attempts - 1), 100);
@@ -156,10 +181,16 @@
     window.setTimeout(() => {
       const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
       const value = String(snapshot?.settings?.display?.daytime_theme || 'classic_dark');
-      select.value = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
+      const next = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
         ? value
         : 'classic_dark';
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(select, next);
+      } else {
+        select.value = next;
+      }
       applyDaytimeTheme(select);
+      window.ACPSettingsSelects?.refresh?.();
     }, 0);
   }
 
@@ -176,11 +207,19 @@
     const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
     const display = snapshot?.settings?.display;
     if (display) {
-      idleSelect.value = display.night_dim_style === 'astronomy' ? 'astronomy' : 'classic';
-      activeSelect.value = ['classic', 'astronomy'].includes(display.night_dim_active_style)
+      const idleValue = display.night_dim_style === 'astronomy' ? 'astronomy' : 'classic';
+      const activeValue = ['classic', 'astronomy'].includes(display.night_dim_active_style)
         ? display.night_dim_active_style
         : 'same';
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(idleSelect, idleValue);
+        window.ACPUnifiedSettings.applyControlValue(activeSelect, activeValue);
+      } else {
+        idleSelect.value = idleValue;
+        activeSelect.value = activeValue;
+      }
       applyNightStyles(idleSelect, activeSelect);
+      window.ACPSettingsSelects?.refresh?.();
       return;
     }
     if (attempts > 0) window.setTimeout(() => populateNightStyles(idleSelect, activeSelect, attempts - 1), 100);
@@ -202,9 +241,9 @@
 
     const header = panel.querySelector('.settings-detail-header');
     const headerCopy = header?.querySelector('p');
-    if (headerCopy) headerCopy.textContent = 'Clock presentation, night behaviour, theme and movement between appliance surfaces.';
+    if (headerCopy) headerCopy.textContent = 'Home clock presentation, night behaviour, theme and movement between appliance surfaces.';
     const sidebarCopy = document.querySelector('[data-settings-section-target="display"] small');
-    if (sidebarCopy) sidebarCopy.textContent = 'Clock, night and theme';
+    if (sidebarCopy) sidebarCopy.textContent = 'Home clock, night and theme';
 
     const overview = make('div', 'settings-subpage-overview');
     overview.dataset.settingsOverview = 'display';
@@ -212,7 +251,7 @@
       row('display:clock', 'Clock', '12/24-hour presentation'),
       row('display:night', 'Night dimming', 'Idle and interaction brightness'),
       row('display:theme', 'Theme', 'Daytime palette and night appearance'),
-      row('display:motion', 'Motion', 'Transition style and duration'),
+      row('display:motion', 'Motion', 'Page and navigation transition timing'),
     ];
     overview.append(...rows);
 

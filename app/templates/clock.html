@@ -1,44 +1,9 @@
 {% extends "base.html" %}
 {% set active_page = 'clock' %}
-{% block title %}Clock - A Clockwork Plex{% endblock %}
+{% block title %}Home - A Clockwork Plex{% endblock %}
 {% block head %}
-<style>
-  .time.is-alpha-clock {
-    --alpha-display-h: clamp(120px, 36vmin, 267px);
-  }
 
-  .date.is-alpha-date {
-    --alpha-display-h: clamp(31px, 8.25vmin, 63px);
-  }
-
-  .time.is-alpha-clock .digital-colon {
-    animation: none;
-    opacity: 1;
-  }
-
-  .time.is-alpha-clock .digital-colon span {
-    background: var(--acp-theme-display, var(--segment-on));
-    box-shadow:
-      0 0 6px var(--acp-theme-display-glow, rgba(255, 255, 255, 0.34)),
-      0 0 14px var(--acp-theme-soft, rgba(255, 255, 255, 0.13));
-  }
-
-  .time.is-alpha-clock.is-colon-off .digital-colon span {
-    background: var(--segment-off);
-    box-shadow: none;
-  }
-
-  @media (max-height: 520px), (max-width: 860px) {
-    .time.is-alpha-clock {
-      --alpha-display-h: clamp(92px, 33vw, 168px);
-    }
-
-    .date.is-alpha-date {
-      --alpha-display-h: clamp(24px, 7.2vw, 42px);
-    }
-  }
-</style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/clock-dashboard.css', v='20260818-alarm-annunciator-balanced') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clock-dashboard.css', v='20261010-b7-cluster-v4') }}">
 {% endblock %}
 {% block content %}
 {% macro composite_card(card_id, label, columns) -%}
@@ -65,6 +30,8 @@
 {%- endmacro %}
 
 <section class="hero clock-hero">
+  <div class="clock-burn-in-cluster" id="clock-burn-in-cluster">
+  <div class="clock-time-row">
   <div class="clock-alarm-annunciator" id="clock-alarm-annunciator" role="img" aria-label="Alarm indicator inactive" data-active="false" data-mode="within_12h">
     <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
       <g class="clock-alarm-annunciator-glyph" transform="rotate(20 32 32)">
@@ -81,10 +48,12 @@
     <span class="digital-colon digital-colon-small" aria-hidden="true"><span></span><span></span></span>
     <span class="digital-group clock-seconds" id="clock-seconds"></span>
   </div>
+  </div>
   <div class="date is-alpha-date" id="clock-date" aria-label="Current date">{{ now.strftime('%A %-d %B %Y') | upper }}</div>
+  </div>
 </section>
 
-<section class="panel weather-panel" id="clock-weather-panel" data-refresh-seconds="{{ config.weather.auto_refresh_seconds | default(60) }}">
+<section class="panel weather-panel" id="clock-weather-panel">
   <h1 id="clock-weather-title">{{ config.weather.station_name }}</h1>
   <div id="clock-weather-content">
     {% if picked_weather %}
@@ -161,7 +130,6 @@
   </div>
 </section>
 
-{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/clock-dashboard.js') }}"></script>

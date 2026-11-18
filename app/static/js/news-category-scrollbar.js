@@ -16,7 +16,6 @@
   }
 
   function measurements() {
-    scrollbar.hidden = false;
     const maxScroll = Math.max(0, scrollMount.scrollHeight - scrollMount.clientHeight);
     const availableHeight = Math.max(0, scrollbar.clientHeight - (trackInset * 2));
     const proportionalHeight = scrollMount.scrollHeight > 0
@@ -28,8 +27,13 @@
   }
 
   function update() {
+    if (!scrollMount.isConnected || !scrollbar.isConnected) return;
+    if (scrollMount.clientHeight <= 0) return;
+
+    scrollbar.hidden = false;
     const metrics = measurements();
-    const scrollable = metrics.maxScroll > 1 && metrics.availableHeight > 0;
+    if (metrics.availableHeight <= 0) return;
+    const scrollable = metrics.maxScroll > 1;
     scrollbar.hidden = !scrollable;
     scrollbar.setAttribute('aria-hidden', scrollable ? 'false' : 'true');
     scrollbar.tabIndex = scrollable ? 0 : -1;
@@ -130,6 +134,16 @@
     const observer = new MutationObserver(() => window.requestAnimationFrame(update));
     observer.observe(scrollMount, { childList: true });
   }
+
+  document.addEventListener('acp:surface-settled', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'news') {
+      window.requestAnimationFrame(update);
+    }
+  });
+
+  window.ACPNewsCategoryScrollbar = {
+    refresh: update,
+  };
 
   window.requestAnimationFrame(update);
 })();

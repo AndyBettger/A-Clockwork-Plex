@@ -10,6 +10,9 @@
     "idle_timeout_seconds": 180,
     "transition_style": "grow-fade",
     "transition_duration_ms": 300,
+    "navigation_transition_duration_ms": 180,
+    "navigation_inactivity_seconds": 6,
+    "navigation_presentation": "overlay",
     "daytime_theme": "classic_dark",
     "night_dim_enabled": false,
     "night_dim_start": "22:00",
@@ -19,6 +22,8 @@
     "night_dim_wake_seconds": 30,
     "night_clock_mode": true,
     "night_burn_in_shift": true,
+    "night_burn_in_motion": "periodic",
+    "night_burn_in_speed_px_per_second": 40,
     "night_dim_style": "classic",
     "night_dim_active_style": "same"
   },
@@ -46,7 +51,6 @@
     "display_units": "metric",
     "station_name": "Weather or Not",
     "reporting_station_name": "Weather Station Name",
-    "auto_refresh_seconds": 60,
     "units": {
       "temperature": "c",
       "pressure": "hpa",

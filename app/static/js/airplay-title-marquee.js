@@ -4,6 +4,7 @@
 
   const title = document.getElementById('airplay-title');
   if (!title) return;
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
 
   /* The source/book/album line already has a physically proven marquee based on
      a clipped container plus translateX on the moving child. Give the episode
@@ -35,7 +36,8 @@
     shell.style.removeProperty('--airplay-scroll-duration');
   }
 
-  function measure({ force = false } = {}) {
+  function measure({ force = false, allowHidden = false } = {}) {
+    if (!allowHidden && surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     const text = String(title.textContent || '').trim();
     const width = shell.clientWidth;
 
@@ -73,5 +75,14 @@
   observer.observe(title, { childList: true, characterData: true, subtree: true });
   window.addEventListener('resize', () => measure({ force: true }));
   window.addEventListener('pageshow', () => measure({ force: true }));
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) window.requestAnimationFrame(() => measure({ force: true }));
+    else clearFrames();
+  });
+
+  window.ACPAirPlayTitleMarquee = Object.freeze({
+    measureForSpatialPreview: () => measure({ force: true, allowHidden: true }),
+  });
+
   measure({ force: true });
 })();

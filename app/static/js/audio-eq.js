@@ -474,6 +474,10 @@
     installSettings();
     refresh(true);
   }, 80));
+  document.addEventListener('acp:surface-settled', () => {
+    install();
+    if (document.body.classList.contains('nav-audio-open')) refresh(true);
+  });
   window.addEventListener('pagehide', () => {
     window.clearInterval(pollTimer);
     debounceTimers.forEach((timer) => window.clearTimeout(timer));

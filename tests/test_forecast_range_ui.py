@@ -50,7 +50,7 @@ class ForecastRangeUiTests(unittest.TestCase):
     def test_weather_page_loads_completion_after_foundation_renderer(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("weather-forecast-completion.js", text)
-        self.assertIn("20260823-hide-unknown-days-v1", text)
+        self.assertRegex(text, r"js/weather-forecast-completion\.js', v='[^']+'")
         self.assertLess(text.index("weather-forecast.js"), text.index("weather-forecast-completion.js"))
 
     def test_hourly_and_fetched_times_use_global_clock_format(self):

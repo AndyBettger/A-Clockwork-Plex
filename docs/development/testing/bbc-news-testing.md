@@ -10,10 +10,10 @@ Automated coverage currently protects:
 - feed-supplied BBC image metadata acceptance only on approved BBC HTTPS hosts;
 - selected-category fetching plus Top Stories retention for the ticker;
 - last-good cache preservation after a later provider failure;
-- read-only `/api/news` behaviour;
+- read-only `/api/news` behaviour plus owner-triggered `POST /api/news/refresh` forced refresh that reuses the existing validated feed service;
 - category/default/ticker-speed Settings validation;
 - runner lifecycle ownership and unified Settings wiring.
 
-The existing `tests/test_weather_forecast.py` module temporarily carries the generic cached-background-feed regression cases so the maintained module catalogue remains unchanged during this first foundation slice. Split into a dedicated News module only with the matching test-catalogue update.
+Dedicated News regression coverage now lives primarily in `tests/test_news_article_qr.py` and `tests/test_news_custom_feed_layout.py`, with Settings integration contracts also protected by `tests/test_settings_ipad.py`. Live BBC availability is still not required in CI: forced-refresh tests use local RSS fixtures and prove the cache TTL is bypassed without widening the approved feed-source boundary.
 
 Physical UI acceptance is not part of the #92 backend foundation. The later News presentation checkpoint must be tested on the commissioned 1280×720 Touch Display 2, including left-rail navigation, headline scrolling, detail presentation, ticker speed and stale/offline presentation.

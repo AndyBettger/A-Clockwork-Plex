@@ -21,7 +21,8 @@
 
   function pageVisible() {
     const page = mount.closest('[data-settings-subpage]');
-    return Boolean(page && !page.hidden && !document.hidden);
+    const settingsActive = String(document.body?.dataset?.activePage || '').toLowerCase() === 'settings';
+    return Boolean(settingsActive && page && !page.hidden && !document.hidden);
   }
 
   function formatTime(value, fallback = 'Not yet') {

@@ -62,7 +62,7 @@ class DaytimeThemeTests(unittest.TestCase):
         bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
         self.assertIn('data-server-daytime-theme="{{ config.dashboard.daytime_theme', base)
         self.assertIn("daytime-themes.css", base)
-        self.assertIn("20260819-curated-themes-v2", base)
+        self.assertRegex(base, r"filename='css/daytime\-themes\.css', v='[^']+'")
         self.assertIn("const daytimeThemes = new Set", bootstrap)
         self.assertIn("normaliseDaytimeTheme", bootstrap)
         self.assertIn("root.dataset.daytimeTheme", bootstrap)

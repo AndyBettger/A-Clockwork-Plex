@@ -34,6 +34,7 @@ try:
     from .plexamp_commissioning import PlexampCommissioningManager
     from .plexamp_preferences import PlexampPreferenceManager
     from .screen_projection_activity import register_activity_screen_projection
+    from .squeekboard_night_shadow_diagnostic import register_c3_shadow_diagnostic_api
     from .settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
     from .time_formatting import promote_server_time_formatting
@@ -76,6 +77,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from plexamp_commissioning import PlexampCommissioningManager
     from plexamp_preferences import PlexampPreferenceManager
     from screen_projection_activity import register_activity_screen_projection
+    from squeekboard_night_shadow_diagnostic import register_c3_shadow_diagnostic_api
     from settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
     from time_formatting import promote_server_time_formatting
@@ -111,6 +113,14 @@ screen_projection.set_idle_return_mode(
     )
 )
 input_activity_monitor = application_state_hub.service("input_activity")
+# Read-only, explicitly triggered C3 diagnostics. No shadow scheduler, CSS
+# writer, keyboard processes or background observation service are started.
+register_c3_shadow_diagnostic_api(
+    app,
+    config_loader=dashboard.load_config,
+    alarm_status=dashboard.alarm_scheduler.status,
+    input_snapshot=input_activity_monitor.snapshot,
+)
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 register_audio_devices_api(app, config_loader=dashboard.load_config)

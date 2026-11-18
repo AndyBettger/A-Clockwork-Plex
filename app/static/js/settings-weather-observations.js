@@ -12,6 +12,9 @@
 
   let lastRevision = null;
   let credentialConfigured = false;
+  let credentialStatusKnown = false;
+  let credentialEditing = false;
+  let credentialBusy = false;
   let rainfallPeriod = null;
   let rainfallChip = null;
   let rainfallMessage = null;
@@ -257,20 +260,52 @@
   function credentialElements() {
     return {
       input: wuPanel?.querySelector('[data-wu-api-key]'),
+      field: wuPanel?.querySelector('[data-wu-api-key-field]'),
+      grid: wuPanel?.querySelector('[data-wu-credential-grid]'),
       label: wuPanel?.querySelector('[data-wu-credential-status]'),
       message: wuPanel?.querySelector('[data-wu-credential-message]'),
       save: wuPanel?.querySelector('[data-action="save-wu-api-key"]'),
+      cancel: wuPanel?.querySelector('[data-action="cancel-wu-key-edit"]'),
       remove: wuPanel?.querySelector('[data-action="remove-wu-api-key"]'),
       test: wuPanel?.querySelector('[data-action="test-wu-connection"]'),
     };
   }
 
   function renderCredentialStatus(configured) {
-    credentialConfigured = configured === true;
-    const { label, save, remove } = credentialElements();
-    if (label) label.textContent = credentialConfigured ? 'Configured' : 'Not configured';
-    if (save) save.textContent = credentialConfigured ? 'Replace API key' : 'Set API key';
-    if (remove) remove.disabled = !credentialConfigured;
+    if (typeof configured === 'boolean') {
+      credentialConfigured = configured;
+      credentialStatusKnown = true;
+    }
+    const { field, grid, input, label, save, cancel, remove, test } = credentialElements();
+    const editing = credentialStatusKnown && (!credentialConfigured || credentialEditing);
+    if (label) label.textContent = !credentialStatusKnown
+      ? 'Checking…' : credentialConfigured ? 'Configured' : 'Not configured';
+    // Status never returns a secret. Entry is allowed only once we know the
+    // configured state or the user has deliberately opened Replace.
+    if (field) field.hidden = !editing;
+    grid?.classList.toggle('is-credential-locked', !editing);
+    if (input) {
+      if (!editing) {
+        if (document.activeElement === input) {
+          input.blur();
+          window.ACPTouchKeyboard?.close?.();
+        }
+        input.value = '';
+      }
+      input.disabled = !editing || credentialBusy;
+    }
+    if (save) {
+      save.textContent = credentialConfigured
+        ? credentialEditing ? 'Save replacement' : 'Replace API key'
+        : 'Set API key';
+      save.disabled = !credentialStatusKnown || credentialBusy;
+    }
+    if (cancel) {
+      cancel.hidden = !credentialConfigured || !credentialEditing;
+      cancel.disabled = credentialBusy;
+    }
+    if (remove) remove.disabled = !credentialStatusKnown || !credentialConfigured || credentialBusy;
+    if (test) test.disabled = credentialBusy;
   }
 
   async function requestJson(url, options = {}) {
@@ -320,11 +355,11 @@
     const block = document.createElement('div');
     block.dataset.wuCommissioning = 'true';
     block.innerHTML = `
-      <div class="settings-grid two-col">
-        <label class="setting-field">
+      <div class="settings-grid two-col" data-wu-credential-grid>
+        <label class="setting-field" data-wu-api-key-field hidden>
           <span>API key</span>
-          <input type="password" autocomplete="new-password" spellcheck="false" data-wu-api-key>
-          <small>The key is sent only to the local commissioning endpoint and is cleared from this field after submission.</small>
+          <input type="password" inputmode="none" autocomplete="new-password" spellcheck="false" data-keyboard="text" data-wu-api-key disabled>
+          <small>Enter a new key to set or replace the saved one. It is sent only to the local commissioning endpoint and cleared after submission.</small>
         </label>
         <div class="setting-field">
           <span>Credential status</span>
@@ -333,8 +368,9 @@
         </div>
       </div>
       <div class="settings-action-row">
-        <button class="button settings-secondary" type="button" data-action="save-wu-api-key">Set API key</button>
-        <button class="button settings-secondary" type="button" data-action="remove-wu-api-key">Remove API key</button>
+        <button class="button settings-secondary" type="button" data-action="save-wu-api-key" disabled>Set API key</button>
+        <button class="button settings-secondary" type="button" data-action="cancel-wu-key-edit" hidden>Cancel replacement</button>
+        <button class="button settings-secondary" type="button" data-action="remove-wu-api-key" disabled>Remove API key</button>
         <button class="button settings-secondary" type="button" data-action="test-wu-connection">Test connection</button>
         <span class="muted small" data-wu-credential-message></span>
       </div>`;
@@ -352,33 +388,79 @@
 
     const elements = credentialElements();
     elements.save?.addEventListener('click', async () => {
-      const key = String(elements.input?.value || '');
+      if (!credentialStatusKnown || credentialBusy) return;
       elements.message.textContent = '';
+      if (credentialConfigured && !credentialEditing) {
+        credentialEditing = true;
+        renderCredentialStatus();
+        elements.message.textContent = 'Tap the new API key field to start typing. The existing key remains active until a replacement is saved.';
+        // Revealing a previously hidden field and focusing it in the same
+        // button handler opens ACP's custom keyboard before Settings can
+        // establish a useful scroll position. Deliberately let the user tap
+        // the now-visible field, like every other Settings text input.
+        const detail = elements.field?.closest('.settings-detail');
+        if (detail) {
+          window.requestAnimationFrame(() => {
+            if (!credentialEditing || elements.field.hidden) return;
+            const bottom = detail.getBoundingClientRect().bottom;
+            const fieldBottom = elements.field.getBoundingClientRect().bottom;
+            if (fieldBottom > bottom - 16) {
+              detail.scrollBy({ top: fieldBottom - bottom + 16, behavior: 'auto' });
+            }
+          });
+        }
+        return;
+      }
+      const key = String(elements.input?.value || '');
+      if (!key.trim()) {
+        elements.message.textContent = 'Enter an API key before saving.';
+        return;
+      }
+      credentialBusy = true;
+      renderCredentialStatus();
       try {
         const payload = await requestJson('/api/weather/underground/credentials', {
           method: 'POST',
           body: JSON.stringify({ api_key: key }),
         });
-        if (elements.input) elements.input.value = '';
+        credentialEditing = false;
         renderCredentialStatus(payload.configured === true);
         elements.message.textContent = payload.message || 'API key saved.';
         await refreshRainfallStatus(true);
       } catch (error) {
-        if (elements.input) elements.input.value = '';
         elements.message.textContent = error.message || 'Could not save API key.';
+      } finally {
+        if (elements.input) elements.input.value = '';
+        credentialBusy = false;
+        renderCredentialStatus();
       }
     });
 
+    elements.cancel?.addEventListener('click', () => {
+      if (credentialBusy) return;
+      credentialEditing = false;
+      if (elements.input) elements.input.value = '';
+      renderCredentialStatus();
+      elements.message.textContent = 'Replacement cancelled. The saved key is unchanged.';
+    });
+
     elements.remove?.addEventListener('click', async () => {
+      if (!credentialConfigured || !credentialStatusKnown || credentialBusy) return;
       elements.message.textContent = '';
+      credentialBusy = true;
+      renderCredentialStatus();
       try {
         const payload = await requestJson('/api/weather/underground/credentials', { method: 'DELETE' });
         if (elements.input) elements.input.value = '';
+        credentialEditing = false;
         renderCredentialStatus(false);
         elements.message.textContent = payload.message || 'API key removed.';
         await refreshRainfallStatus(true);
       } catch (error) {
         elements.message.textContent = error.message || 'Could not remove API key.';
+      } finally {
+        credentialBusy = false;
+        renderCredentialStatus();
       }
     });
 
@@ -397,7 +479,7 @@
       }
     });
 
-    renderCredentialStatus(credentialConfigured);
+    renderCredentialStatus(); // Fail closed until the credential endpoint replies.
     refreshCredentialStatus();
   }
 
@@ -405,7 +487,14 @@
     const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
     if (!snapshot) return false;
     const savedPeriod = snapshot.settings?.weather?.historical_rainfall?.period;
-    if (rainfallPeriod && savedPeriod && !form.matches(':focus-within')) rainfallPeriod.value = savedPeriod;
+    if (rainfallPeriod && savedPeriod && !form.matches(':focus-within')) {
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(rainfallPeriod, savedPeriod);
+      } else {
+        rainfallPeriod.value = savedPeriod;
+      }
+      window.ACPSettingsSelects?.refresh?.();
+    }
     updatePanels();
     if (snapshot.revision !== lastRevision) {
       lastRevision = snapshot.revision;

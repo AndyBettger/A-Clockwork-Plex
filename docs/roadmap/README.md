@@ -2,7 +2,7 @@
 
 Start with **[`ROADMAP.md`](ROADMAP.md)**.
 
-The main roadmap is intentionally a compact project dashboard: feature order, status, current focus, branch/release model and links to the detailed feature roadmaps.
+The main roadmap is a compact **live project dashboard**: feature order, status, the next action and release scope. The #94 feature roadmap is now a **current checklist**, not an engineering diary.
 
 ## Feature roadmaps
 
@@ -14,3 +14,5 @@ Detailed architecture/testing/evidence belongs under `../development/`, while hi
 - [`history-through-checkpoint64.md`](history-through-checkpoint64.md)
 
 History files are records, not current instructions.
+
+The full pre-cleanup versions are preserved in the [19 October project history](../archive/acp-roadmap-full-history-2026-10-19.md) and [19 October #94 feature history](../archive/acp-shell-native-plexamp-full-history-2026-10-19.md). They are not active task lists.

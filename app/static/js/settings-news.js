@@ -4,6 +4,7 @@
   window.__aClockworkPlexSettingsNewsLoaded = true;
 
   const FEED_VALIDATE_API = '/api/news/feed/validate';
+  const NEWS_REFRESH_API = '/api/news/refresh';
   const BUILT_IN_FEEDS = Object.freeze([
     { id: 'top', label: 'Top Stories', url: 'https://feeds.bbci.co.uk/news/rss.xml' },
     { id: 'uk', label: 'UK', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml' },
@@ -53,6 +54,9 @@
           <span class="settings-chip" data-news-settings-status>Loading…</span>
         </div>
         <p class="muted small" data-news-settings-message>Checking cached BBC News status.</p>
+        <div class="settings-action-row">
+          <button class="button settings-secondary" type="button" data-news-refresh-now>Refresh feeds now</button>
+        </div>
       </section>
       <button class="settings-subpage-row" type="button" data-settings-subpage-target="news:sections">
         <span><strong>Sections</strong><small>Enabled sections and the default News page</small></span><span>›</span>
@@ -149,6 +153,7 @@
   const tickerSpeed = panel.querySelector('[data-news-ticker-speed]');
   const statusChip = panel.querySelector('[data-news-settings-status]');
   const statusMessage = panel.querySelector('[data-news-settings-message]');
+  const refreshNowButton = panel.querySelector('[data-news-refresh-now]');
 
   const builtInById = new Map(BUILT_IN_FEEDS.map((feed) => [feed.id, feed]));
   let feedState = [];
@@ -455,8 +460,8 @@
     })[String(status || '').toLowerCase()] || String(status || 'Waiting');
   }
 
-  function renderStatus() {
-    const status = window.ACPUnifiedSettings?.getSnapshot?.()?.status?.news || {};
+  function renderStatus(statusOverride = null) {
+    const status = statusOverride || window.ACPUnifiedSettings?.getSnapshot?.()?.status?.news || {};
     if (statusChip) {
       statusChip.textContent = statusLabel(status.status);
       statusChip.classList.toggle('is-warning', ['degraded', 'stale', 'error'].includes(String(status.status || '').toLowerCase()));
@@ -470,6 +475,46 @@
         : when
           ? `BBC News cache last checked ${when}.`
           : 'No BBC News refresh has completed yet.';
+    }
+  }
+
+  async function refreshNewsNow() {
+    if (!refreshNowButton || refreshNowButton.disabled) return;
+    refreshNowButton.disabled = true;
+    refreshNowButton.textContent = 'Refreshing…';
+    if (statusChip) {
+      statusChip.textContent = 'Refreshing…';
+      statusChip.classList.remove('is-warning');
+    }
+    if (statusMessage) statusMessage.textContent = 'Fetching the enabled BBC News feeds now.';
+
+    try {
+      const response = await fetch(NEWS_REFRESH_API, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || `BBC News refresh returned HTTP ${response.status}.`);
+      }
+      renderStatus(payload);
+      const degraded = ['degraded', 'stale', 'error'].includes(String(payload.status || '').toLowerCase())
+        || payload.stale === true;
+      if (statusMessage) {
+        statusMessage.textContent = degraded
+          ? 'Refresh completed, but one or more feeds are still using cached data.'
+          : 'BBC News feeds refreshed successfully.';
+      }
+    } catch (error) {
+      if (statusChip) {
+        statusChip.textContent = 'Refresh failed';
+        statusChip.classList.add('is-warning');
+      }
+      if (statusMessage) statusMessage.textContent = error.message || 'Could not refresh BBC News feeds.';
+    } finally {
+      refreshNowButton.disabled = false;
+      refreshNowButton.textContent = 'Refresh feeds now';
     }
   }
 
@@ -582,6 +627,7 @@
     markDirty();
   });
   tickerSpeed.addEventListener('change', markDirty);
+  refreshNowButton?.addEventListener('click', refreshNewsNow);
   window.addEventListener('acp:clock-format-changed', renderStatus);
 
   addFeedButton?.addEventListener('click', () => {

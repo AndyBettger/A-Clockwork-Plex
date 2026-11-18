@@ -80,7 +80,8 @@
   }
 
   async function refresh() {
-    if (document.visibilityState === 'hidden') return;
+    const settingsActive = String(document.body?.dataset?.activePage || '').toLowerCase() === 'settings';
+    if (!settingsActive || document.visibilityState === 'hidden') return;
     try {
       const response = await fetch('/api/weather/rainfall/lifetime', {
         cache: 'no-store',
@@ -98,6 +99,9 @@
   timer = window.setInterval(refresh, 15000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refresh();
+  });
+  document.addEventListener('acp:surface-activated', (event) => {
+    if (String(event.detail?.surface || '').toLowerCase() === 'settings') refresh();
   });
   window.addEventListener('pagehide', () => {
     if (timer !== null) window.clearInterval(timer);

@@ -19,9 +19,9 @@ body.mode-airplay .screen {
 
 .airplay-now-card,
 .airplay-info-card {
-  border-radius: clamp(18px, 3vmin, 28px);
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
+  border-radius: var(--acp-radius-panel);
+  background: var(--acp-color-surface);
+  border: 1px solid var(--acp-color-border);
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.24);
 }
 
@@ -225,7 +225,8 @@ body.airplay-metadata-active .airplay-copy h1 {
   animation: airplay-live-dot 1.8s ease-out infinite;
 }
 
-body.airplay-session-idle .airplay-live-dot {
+body.airplay-session-idle .airplay-live-dot ,
+body.airplay-session-unresolved .airplay-live-dot {
   background: rgba(255, 255, 255, 0.35);
   animation: none;
   box-shadow: none;

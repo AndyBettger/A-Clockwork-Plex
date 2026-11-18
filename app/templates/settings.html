@@ -2,8 +2,8 @@
 {% set active_page = 'settings' %}
 {% block title %}Settings - A Clockwork Plex{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v='20260802-unified-settings') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-ipad.css', v='20260802-split-view') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v='20261012-wu-credential-gate-v1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-ipad.css', v='20261019-c3-decimal-numeric-v2') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-alarms.css') }}">
 {% endblock %}
 {% block content %}
@@ -26,7 +26,7 @@
         <nav class="settings-sidebar-list">
           {% for item in [
             ('general', 'General', 'Startup and idle'),
-            ('display', 'Display', 'Clock and motion'),
+            ('display', 'Display', 'Home clock and motion'),
             ('weather', 'Weather', 'Station and forecast'),
             ('alarms', 'Alarms', 'Schedule and sound'),
             ('airplay', 'AirPlay', 'Receiver and handoff'),
@@ -74,7 +74,7 @@
         </div>
 
         <div class="settings-detail-panel" data-settings-section="display" hidden>
-          <header class="settings-detail-header"><div><h2>Display</h2><p>Clock presentation and movement between appliance surfaces.</p></div></header>
+          <header class="settings-detail-header"><div><h2>Display</h2><p>Home clock presentation and movement between appliance surfaces.</p></div></header>
           <section class="settings-card">
             <h3>Clock</h3>
             <div class="settings-grid two-col">
@@ -84,7 +84,7 @@
                   <option value="24h">24-hour</option>
                   <option value="12h">12-hour</option>
                 </select>
-                <small>Used by the Clock and the AirPlay glance clock.</small>
+                <small>Used by Home and the AirPlay glance clock.</small>
               </label>
             </div>
           </section>
@@ -96,22 +96,46 @@
                 <select data-setting-path="display.transition_style">
                   <option value="grow-fade">Grow and fade</option>
                   <option value="crossfade">Crossfade</option>
+                  <option value="horizontal-slide">Horizontal slide</option>
+                  <option value="vertical-lift">Vertical lift</option>
+                  <option value="cover-reveal">Cover reveal</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="blur-dissolve">Blur dissolve</option>
+                  <option value="spatial-row">Spatial row (prototype)</option>
                   <option value="instant">Instant</option>
                 </select>
               </label>
               <label class="setting-field">
                 <span>Transition duration</span>
                 <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.transition_duration_ms">
-                <small>Milliseconds; 0–2000.</small>
+                <small>Application-surface transitions. Current: <output data-setting-output="display.transition_duration_ms">—</output> · range 0–2000 ms.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation presentation</span>
+                <select data-setting-path="display.navigation_presentation">
+                  <option value="overlay">Overlay content</option>
+                  <option value="lift">Lift content</option>
+                </select>
+                <small>Overlay keeps navigation above page transitions. Lift content raises the live workspace while navigation is open.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation transition duration</span>
+                <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_transition_duration_ms">
+                <small>Drawer, indicator and dimming animation speed; also controls the optional live-page lift. Current: <output data-setting-output="display.navigation_transition_duration_ms">—</output> · range 0–1000 ms.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation inactivity time</span>
+                <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_inactivity_seconds">
+                <small>How long navigation stays open after the last interaction. Current: <output data-setting-output="display.navigation_inactivity_seconds">—</output> · 0 means never auto-hide; range 0–30 s.</small>
               </label>
             </div>
           </section>
         </div>
 
         <div class="settings-detail-panel" data-settings-section="weather" hidden>
-          <header class="settings-detail-header"><div><h2>Weather</h2><p>Local observations, online forecasts and Clock summaries.</p></div></header>
+          <header class="settings-detail-header"><div><h2>Weather</h2><p>Local observations, online forecasts and Home summaries.</p></div></header>
           <div class="settings-subpage-overview" data-settings-overview="weather">
-            {% for item in [('station','Station','Observation provider and station identity'),('units','Units','Presets with full custom control'),('forecast','Online forecast','Open-Meteo location and cache'),('clock-cards','Clock weather cards','Choose and order compact readings')] %}
+            {% for item in [('station','Station','Observation provider and station identity'),('units','Units','Presets with full custom control'),('forecast','Online forecast','Open-Meteo location and cache'),('clock-cards','Home weather cards','Choose and order compact readings')] %}
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="weather:{{ item[0] }}"><span><strong>{{ item[1] }}</strong><small>{{ item[2] }}</small></span><span>›</span></button>
             {% endfor %}
           </div>
@@ -160,7 +184,6 @@
               <div class="settings-grid two-col">
                 <label class="setting-field"><span>Weather page title</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.station_name"></label>
                 <label class="setting-field"><span>Reporting station name</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.reporting_station_name"></label>
-                <label class="setting-field"><span>Dashboard observation refresh</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.auto_refresh_seconds"><small>Browser refresh cadence in seconds; 0 disables periodic screen refresh.</small></label>
               </div>
             </section>
           </section>
@@ -203,7 +226,7 @@
           <section class="settings-subpage" data-settings-subpage="weather:clock-cards" hidden>
             <button class="settings-back" type="button" data-settings-back="weather">‹ Weather</button>
             <section class="settings-card" data-clock-card-settings>
-              <h3>Clock weather cards</h3>
+              <h3>Home weather cards</h3>
               <p class="muted small">Choose cards and use the arrows to set their order.</p>
               <div class="clock-card-order" id="clock-card-order" aria-live="polite"></div>
               <div id="clock-card-hidden-inputs"></div>
@@ -298,11 +321,32 @@
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:audio"><span><strong>Audio hardware</strong><small>DAC and shared-mixer path</small></span><span>›</span></button>
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:authorities"><span><strong>Playback and screen authority</strong><small>Read-only ownership diagnostics</small></span><span>›</span></button>
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:services"><span><strong>Service status</strong><small>Plexamp, Shairport and forecast</small></span><span>›</span></button>
+            <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:keyboard"><span><strong>Keyboard trial</strong><small>Try one Wayland keyboard for ACP and Plexamp</small></span><span>›</span></button>
           </div>
           <section class="settings-subpage" data-settings-subpage="advanced:alarm" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><div id="settings-advanced-alarm-diagnostics"></div></section>
           <section class="settings-subpage" data-settings-subpage="advanced:audio" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><section class="settings-card"><h3>Alarm audio hardware</h3><div class="settings-grid two-col"><label class="setting-toggle"><input type="checkbox" data-setting-path="alarm_audio.shared_mixer_enabled"><span>Use shared ALSA mixer</span></label><label class="setting-field"><span>Physical DAC</span><input inputmode="none" data-keyboard="text" data-setting-path="alarm_audio.hardware_device"></label><label class="setting-field"><span>Alarm PCM</span><input readonly data-setting-path="alarm_audio.alsa_device"></label><label class="setting-field"><span>Test duration</span><select data-setting-path="alarm_audio.test_duration_seconds"><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="12">12 seconds</option><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></label></div><div class="settings-action-row"><button class="button" type="button" data-action="alarm-audio-test">Test tone now</button><button class="button settings-secondary" type="button" data-action="alarm-audio-stop">Stop alarm audio</button><span class="muted small" data-alarm-audio-message></span></div></section></section>
           <section class="settings-subpage" data-settings-subpage="advanced:authorities" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><section class="settings-card"><h3>Playback and screen authority</h3><pre class="settings-json-status" data-authority-status>Loading…</pre><button class="button settings-secondary" type="button" data-action="refresh-authorities">Refresh</button></section></section>
           <section class="settings-subpage" data-settings-subpage="advanced:services" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><section class="settings-card"><h3>Service status</h3><div class="settings-status-grid" data-service-status><p class="muted">Loading…</p></div><button class="button settings-secondary" type="button" data-action="refresh-services">Refresh</button></section></section>
+          <section class="settings-subpage" data-settings-subpage="advanced:keyboard" hidden>
+            <button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button>
+            <section class="settings-card">
+              <h3>On-screen keyboard — native trial</h3>
+              <p class="muted small">Test the compositor-level Squeekboard without ACP opening its second HTML keyboard. This only selects the browser's input mode; it does not launch, install or stop Squeekboard.</p>
+              <p class="muted small" data-osk-trial-status role="status">Using the existing ACP keyboard. System keyboard trial is off.</p>
+              <div class="settings-action-row">
+                <button type="button" class="button settings-secondary" data-osk-trial-toggle aria-pressed="false">Try system keyboard</button>
+              </div>
+              <p class="muted small">The browser's native-keyboard selection lasts up to five minutes, but the independently launched experimental Squeekboard runs for only 180 seconds <em>from the SSH command</em>. It may therefore stop earlier than this selection. If input stops working, tap <strong>Restore ACP keyboard</strong>. Native integer fields temporarily use HTML number input; time, decimal and URL inputs retain their previous behaviour. Existing specialised time, numeric and URL quick-entry layouts remain available in ACP mode.</p>
+              <div data-osk-native-probes hidden>
+                <h4>Numeric layout diagnostic — temporary fields</h4>
+                <p class="muted small">These fields do not save settings. Test both while the system keyboard is running: The native number field raised the digits keypad during physical testing. ACP now tries that HTML type only for real integer settings while this temporary trial is active; ordinary ACP mode is unchanged. These probes remain unsaved.</p>
+                <div class="settings-grid two-col">
+                  <label class="setting-field"><span>Text field with numeric hint</span><input type="text" inputmode="numeric" autocomplete="off" data-osk-probe="numeric-text" placeholder="1234"><small>Same HTML input type used by ACP numeric settings.</small></label>
+                  <label class="setting-field"><span>Native number field</span><input type="number" inputmode="numeric" autocomplete="off" data-osk-probe="numeric-number" placeholder="1234"><small>Diagnostic only; may show desktop number controls.</small></label>
+                </div>
+              </div>
+            </section>
+          </section>
         </div>
 
         <div class="settings-detail-panel" data-settings-section="about" hidden>
@@ -327,14 +371,13 @@
 
 <div class="touch-keyboard" id="touch-keyboard" aria-hidden="true"><div class="touch-keyboard-header"><span id="touch-keyboard-label">Keyboard</span><button type="button" class="touch-keyboard-command" data-action="done">Done</button></div><div class="touch-keyboard-quick" id="touch-keyboard-quick"></div><div class="touch-keyboard-keys" id="touch-keyboard-keys"></div></div>
 
-{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings-ipad.js', v='20260802-unified-settings') }}"></script>
-<script src="{{ url_for('static', filename='js/settings-weather-observations.js', v='20260810-observation-providers') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-ipad.js', v='20261007-b5-followup-v1') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-weather-observations.js', v='20261013-wu-editor-accepted-v3') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-alarms.js', v='20260802-unified-settings') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-advanced.js', v='20260908-zero-preview-parent-v2') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-clock-cards.js') }}"></script>
-<script src="{{ url_for('static', filename='js/settings-keyboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-keyboard.js', v='20261012-native-osk-reveal-v2') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-about.js', v='20260831-home-restore-feedback-v2') }}"></script>
 {% endblock %}

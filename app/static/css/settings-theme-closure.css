@@ -128,3 +128,14 @@ body[data-active-page="settings"] [data-settings-subpage="audio:eq"] :is(
 ) {
   color: var(--accent-strong) !important;
 }
+
+/* ACP Settings focus closure: the legacy .setting-field input:focus in
+   settings.css uses a Classic-Dark neutral blue. Mouse/touch focus on
+   ordinary sliders is not always :focus-visible, so catch BOTH states.
+   Retain an accessible visible outline, but use the selected theme hue. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-field
+input[type="range"]:not(.acp-calibrated-fader):is(:focus, :focus-visible) {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}

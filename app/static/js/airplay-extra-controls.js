@@ -147,7 +147,10 @@
   `;
   document.head.appendChild(style);
 
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
   let skipMode = 'track';
+  let disabledTimer = null;
+  let skipTimer = null;
 
   function trackIconMarkup(direction) {
     const className = direction === 'previous' ? 'is-previous' : 'is-next';
@@ -259,6 +262,7 @@
   }
 
   async function refreshSkipMode() {
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
       if (!response.ok) {
@@ -273,13 +277,47 @@
     }
   }
 
+  function stopTimers() {
+    window.clearTimeout(disabledTimer);
+    window.clearTimeout(skipTimer);
+    disabledTimer = null;
+    skipTimer = null;
+  }
+
+  function scheduleDisabledState() {
+    window.clearTimeout(disabledTimer);
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    disabledTimer = window.setTimeout(() => {
+      syncDisabledState();
+      scheduleDisabledState();
+    }, 1000);
+  }
+
+  function scheduleSkipMode() {
+    window.clearTimeout(skipTimer);
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    skipTimer = window.setTimeout(async () => {
+      await refreshSkipMode();
+      scheduleSkipMode();
+    }, 2500);
+  }
+
+  function activate() {
+    syncDisabledState();
+    void refreshSkipMode().finally(scheduleSkipMode);
+    scheduleDisabledState();
+  }
+
   backButton.addEventListener('click', () => sendControl(backButton.dataset.airplayAction));
   forwardButton.addEventListener('click', () => sendControl(forwardButton.dataset.airplayAction));
   window.addEventListener('airplay-control-sent', refreshSkipMode);
 
-  window.setInterval(syncDisabledState, 1000);
-  window.setInterval(refreshSkipMode, 2500);
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activate();
+    else stopTimers();
+  });
+
   setButtonMode('track');
-  syncDisabledState();
-  refreshSkipMode();
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activate();
+  window.addEventListener('pagehide', stopTimers, { once: true });
 })();

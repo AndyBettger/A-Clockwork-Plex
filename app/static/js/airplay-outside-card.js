@@ -7,7 +7,9 @@
     return;
   }
 
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
   let lastRawValue = null;
+  let timer = null;
 
   function sourceValue() {
     return String(source.dataset.segmentSource || source.textContent || '').trim();
@@ -45,6 +47,33 @@
     attributeFilter: ['data-segment-source'],
   });
 
-  syncOutsideReadings();
-  window.setInterval(syncOutsideReadings, 1000);
+  function stopSync() {
+    window.clearTimeout(timer);
+    timer = null;
+  }
+
+  function scheduleSync() {
+    stopSync();
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    timer = window.setTimeout(() => {
+      syncOutsideReadings();
+      scheduleSync();
+    }, 1000);
+  }
+
+  function activateSync() {
+    syncOutsideReadings();
+    scheduleSync();
+  }
+
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activateSync();
+    else stopSync();
+  });
+
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activateSync();
+  window.addEventListener('pagehide', () => {
+    stopSync();
+    observer.disconnect();
+  }, { once: true });
 })();

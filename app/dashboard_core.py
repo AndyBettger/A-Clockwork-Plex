@@ -667,6 +667,72 @@ def rain_gauges(field_ids: list[str], config: dict[str, Any], weather: dict[str,
     return [gauge for field_id in field_ids if (gauge := rain_gauge(field_id, config, weather))]
 
 
+def rain_overview_data(
+    config: dict[str, Any],
+    weather: dict[str, Any],
+    state: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, str] | None]:
+    """Use one event gauge, showing the last event when current rain is zero.
+
+    An active derived event is only added if distinct from the station's
+    Event Rain reading. A completed Weather Underground event replaces the
+    zero Event Rain gauge (or fills that slot when absent); its time appears
+    inside the card, never as a separate footer that changes panel height.
+    Do not replace nonzero current rainfall with stale history.
+    """
+    gauges = rain_gauges(
+        ["rain_rate", "hourly_rain", "daily_rain", "event_rain"],
+        config, weather,
+    )
+    summary = rain_event_summary(config, state)
+    if summary and summary["kind"] == "last":
+        event_amount = rain_amount_mm("event_rain", weather)
+        current_rate = rain_amount_mm("rain_rate", weather)
+        if (event_amount is None or event_amount <= 0) and (
+            current_rate is None or current_rate <= 0
+        ):
+            derived = state.get("weather_rain_derived")
+            if isinstance(derived, dict):
+                total_in = parse_float(derived.get("last_event_total_in"))
+                if total_in is not None and total_in > 0:
+                    amount_mm = inches_to_mm(total_in)
+                    maximum_mm = dynamic_rain_max_mm(amount_mm)
+                    last_gauge = {
+                        "label": summary["label"],
+                        "value": summary["value"],
+                        "max_label": format_rain_mm(maximum_mm, config),
+                        "percent": round(min(100, amount_mm / maximum_mm * 100), 1),
+                        "note": summary["detail"],
+                    }
+                    for index, gauge in enumerate(gauges):
+                        if str(gauge.get("label", "")).casefold() == "event rain":
+                            gauges[index] = last_gauge
+                            break
+                    else:
+                        gauges.append(last_gauge)
+        # No separate last-event note: the four main gauges stay aligned.
+        return gauges, None
+
+    if summary and summary["kind"] == "active":
+        source_gauge = rain_gauge("event_rain", config, weather)
+        if not source_gauge or source_gauge["value"] != summary["value"]:
+            derived = state.get("weather_rain_derived")
+            if isinstance(derived, dict):
+                total_in = parse_float(derived.get("event_total_in"))
+                if total_in is not None and total_in > 0:
+                    amount_mm = inches_to_mm(total_in)
+                    maximum_mm = dynamic_rain_max_mm(amount_mm)
+                    gauges.append({
+                        "label": summary["label"],
+                        "value": summary["value"],
+                        "max_label": format_rain_mm(maximum_mm, config),
+                        "percent": round(min(100, amount_mm / maximum_mm * 100), 1)
+                        if maximum_mm > 0 else 0,
+                        "note": summary["detail"],
+                    })
+    return gauges, None
+
+
 def rain_event_summary(config: dict[str, Any], state: dict[str, Any]) -> dict[str, str] | None:
     weather_config = config.get("weather") if isinstance(config.get("weather"), dict) else {}
     if str(weather_config.get("provider") or "").strip().lower() != "weather_underground":
@@ -687,7 +753,10 @@ def rain_event_summary(config: dict[str, Any], state: dict[str, Any]) -> dict[st
         end = parse_datetime(end_value)
         if start and end:
             if start.date() == end.date():
-                return f"{start:%H:%M}–{end:%H:%M}"
+                # A one-minute event must not read "22:33–22:33".
+                if start.strftime("%H:%M") == end.strftime("%H:%M"):
+                    return f"{end:%d/%m %H:%M}"
+                return f"{end:%d/%m} {start:%H:%M}–{end:%H:%M}"
             return f"{start:%d/%m %H:%M}–{end:%d/%m %H:%M}"
         if end:
             return f"Ended {end:%d/%m %H:%M}"
@@ -831,12 +900,13 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
 
 
 def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    current_rain_gauges, rain_note = rain_overview_data(config, weather, state)
     return {
         "issued_at": format_display_datetime(state.get("last_weather_update")),
         "condition_rows": condition_rows(config, weather, state),
         "atmosphere": weather_items(["solar", "uv", "vpd"], config, weather),
-        "rain_today_gauges": rain_gauges(["rain_rate", "hourly_rain", "daily_rain", "event_rain"], config, weather),
-        "rain_event_summary": rain_event_summary(config, state),
+        "rain_today_gauges": current_rain_gauges,
+        "rain_event_summary": rain_note,
         "rain_longer_gauges": rain_gauges(["weekly_rain", "monthly_rain", "yearly_rain", "total_rain"], config, weather),
         "station_status": weather_items(
             ["station_type", "model", "frequency", "upload_interval", "last_station_update", "sensor_battery"],
@@ -1019,7 +1089,6 @@ def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
 
     weather["station_name"] = form_text("station_name", weather.get("station_name", "Weather or Not"))
     weather["reporting_station_name"] = form_text("reporting_station_name", weather.get("reporting_station_name", "Weather Station Name"))
-    weather["auto_refresh_seconds"] = form_int("auto_refresh_seconds", weather.get("auto_refresh_seconds", 60), 0, 3600)
     weather["display_units"] = form_choice("display_units", str(weather.get("display_units", "metric")), {"metric", "imperial"})
     units["temperature"] = form_choice("unit_temperature", str(units.get("temperature", "c")), {"c", "f"})
     units["pressure"] = form_choice("unit_pressure", str(units.get("pressure", "hpa")), {"hpa", "inhg"})
@@ -1046,7 +1115,7 @@ def settings_page_context(config: dict[str, Any], saved: bool = False, error: st
         "settings_error": error,
         "clock_card_options": [{"id": field_id, "label": clock_card_option_label(field_id)} for field_id in CLOCK_CARD_FIELD_IDS],
         "mode_options": [
-            {"id": "clock", "label": "Clock"},
+            {"id": "clock", "label": "Home"},
             {"id": "weather", "label": "Weather"},
             {"id": "plexamp", "label": "Plexamp"},
             {"id": "airplay", "label": "AirPlay"},
@@ -1086,6 +1155,34 @@ def clock():
 def weather():
     set_mode("weather")
     return render_template("weather.html")
+
+
+@app.route("/api/surfaces/<surface>")
+def api_surface_document(surface: str):
+    templates = {
+        "clock": "clock.html",
+        "weather": "weather.html",
+        "news": "news.html",
+        "settings": "settings.html",
+        "airplay": "airplay.html",
+    }
+    surface_name = str(surface or "").strip().lower()
+    template = templates.get(surface_name)
+    if not template:
+        return jsonify({"ok": False, "error": "Surface is not available for same-document mounting."}), 404
+
+    context: dict[str, Any] = {}
+    if surface_name == "settings":
+        config = load_config()
+        context = settings_page_context(config)
+
+    return jsonify(
+        {
+            "ok": True,
+            "surface": surface_name,
+            "html": render_template(template, **context),
+        }
+    )
 
 
 @app.route("/airplay")
