@@ -1184,7 +1184,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         if args.surface_transition_mode == "configured":
             print("ACP WebKit probe: Settings-driven profile: saved style/page/nav durations; "
                   "no forced style. Accepted content staging, Cover-only News copies, "
-                  "Grow/fade copy candidate, F10 spatial row and F11 navigation enabled. F8 reloads saved Settings "
+                  "Grow/fade frame-layout candidate, F10 spatial row and F11 navigation enabled. F8 reloads saved Settings "
                   "on Clock; session deadline unchanged. Save changes in the normal ACP "
                   "window; this proxy still refuses writes. Check configuredSettings, "
                   "nativeTransitions and renderer duration metrics.", flush=True)

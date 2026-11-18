@@ -23,12 +23,15 @@ function fixture({ enabled = true, liveCover = false, growCopies = false, durati
   const logo = { hidden: false, decode: () => { calls.push('decode'); return image.promise; } };
   const page = { dataset: { acpForecastSettled: 'true' } };
   const wrapper = { querySelector: (selector) => selector === '[data-news-logo]' ? logo : page };
-  const guards = [], animations = [];
+  const guards = [], animations = [], frameWaiters = [];
   const body = { children: [], appendChild(node) { this.children.push(node); } };
   function element() {
     const node = { children: [], style: { setProperty(key, value) { this[key] = value; } },
       classList: { add() {} }, setAttribute() {},
-      appendChild(child) { this.children.push(child); child.parentNode = this; },
+      appendChild(child) {
+        if (child.parentNode) child.remove();
+        this.children.push(child); child.parentNode = this;
+      },
       querySelectorAll: () => [], getBoundingClientRect: () => ({}),
       animate(frames, timing) {
         const done = deferred();
@@ -60,7 +63,7 @@ function fixture({ enabled = true, liveCover = false, growCopies = false, durati
     __acpWebkitNewsLiveCoverTrial: liveCover,
     __acpWebkitGrowFadeCopyTrial: growCopies,
     innerWidth: 853, innerHeight: 480,
-    getComputedStyle: () => ({ getPropertyValue: () => `${duration}ms` }),
+    getComputedStyle: (node) => ({ ...node?.style, getPropertyValue: () => `${duration}ms` }),
     ACPWeatherSurface: { refresh: () => { calls.push('weather-refresh'); return refresh.promise; } },
     ACPNewsSurface: { refresh: () => { calls.push('news-refresh'); return refresh.promise; } },
     ACPWeatherForecast: { ready: forecast.promise },
@@ -85,7 +88,10 @@ function fixture({ enabled = true, liveCover = false, growCopies = false, durati
       guards.push(node);
       return node;
     },
-    nextFrame: async () => { calls.push('paint-frame'); },
+    nextFrame: () => {
+      calls.push('paint-frame');
+      return growCopies ? new Promise(resolve => frameWaiters.push(resolve)) : Promise.resolve();
+    },
     applicationTransitionDurationMs: () => duration,
     applicationTransitionStyle: () => style,
     commitSurface: () => { calls.push('commit'); },
@@ -99,10 +105,24 @@ function fixture({ enabled = true, liveCover = false, growCopies = false, durati
     source.indexOf('  function nextFrame(')), context);
   vm.runInContext(source.slice(source.indexOf('  function ordinaryTransitionFrames('),
     source.indexOf('  function applyInitialFrame(')), context);
+  vm.runInContext(source.slice(source.indexOf('  function frameStripProgress('),
+    source.indexOf('  async function frameStripLiveCommit(')), context);
   vm.runInContext(preparation, context);
   return { window, registry, calls, timers, refresh, forecast, completion, image,
     context, guards, body, screen, scroller, animations,
-    tick: (value) => { now = value; } };
+    tick: (value) => { now = value; },
+    async paintFrame(timestamp) {
+      assert.ok(frameWaiters.length, 'a frame callback must be pending');
+      now = timestamp; frameWaiters.shift()(now); await flush();
+    },
+    async finishFrames(step = 40) {
+      await flush();
+      let count = 0;
+      while (frameWaiters.length) {
+        assert.ok(++count < 1000, 'frame loop must finish within its configured budget');
+        now += step; frameWaiters.shift()(now); await flush();
+      }
+    } };
 }
 
 test('Weather waits for refresh, forecast and completion before the incoming snapshot', async () => {
@@ -507,24 +527,53 @@ test('Grow/fade copy hook is opt-in and cannot replace another configured style'
   }
 });
 
-test('Grow/fade uses the existing frames and keeps final opacity/transform through cancellation', async () => {
+test('Grow/fade advances on frame timestamps and retains the final copy through live handoff', async () => {
   const f = fixture({ growCopies: true, style: 'grow-fade' });
   const parent = {}; f.screen.parentNode = parent;
+  f.scroller.scrollTop = 120;
   const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
   const pending = prepared.copyCommit({ commit: async () => {} });
   await flush();
+  await f.paintFrame(100); await f.paintFrame(200);
   assert.equal(f.body.children.length, 2);
   assert.ok(f.body.children.every(mask => mask.className === 'acp-webkit-page-copy-viewport'));
-  assert.equal(f.animations[0].frames[1].opacity, 0);
-  assert.equal(f.animations[0].frames[1].transform, 'translateY(-7px) scale(.985)');
-  assert.equal(f.animations[1].frames[0].transform, 'translateY(10px) scale(.976)');
+  const [outgoing, incoming] = f.body.children;
+  const state = f.window.__acpWebkitPageCopiesLast;
+  assert.equal(state.renderer, 'frame-layout');
+  assert.equal(outgoing.style.opacity, '1'); assert.equal(incoming.style.opacity, '0');
+  assert.equal(f.guards[1].style.zoom, '0.976');
+  assert.ok(Math.abs(parseFloat(incoming.children[0].style.left) - 10.236) < .001);
+  assert.ok(Math.abs(parseFloat(incoming.children[0].style.top) - 15.76) < .001);
+  assert.ok(f.guards.every(layer => layer.scroller.scrollTop === 120));
+  await f.paintFrame(300); // motion starts after preparation, not at request time
+  await f.paintFrame(1300);
+  const middle = Number(incoming.style.opacity);
+  assert.ok(middle > .5 && middle < 1, 'baseline easing is applied to elapsed clock time');
+  assert.equal(outgoing.style.opacity, String(1 - middle));
+  assert.equal(f.screen.style.visibility, 'hidden');
+  await f.paintFrame(2300);
+  assert.equal(state.phase, 'handoff');
+  assert.equal(state.elapsedMs, 2000);
+  assert.equal(state.frames, 3);
+  assert.equal(state.maxFrameGapMs, 1000, 'scheduling gaps are reported, not called display FPS');
+  assert.equal(outgoing.style.opacity, '0');
+  assert.equal(outgoing.style.visibility, 'hidden');
+  assert.equal(incoming.style.opacity, '1'); assert.equal(f.guards[1].style.zoom, '1');
+  assert.equal(incoming.children[0].style.left, '0px');
+  assert.equal(incoming.children[0].style.top, '0px');
+  assert.equal(f.animations.length, 0, 'no WAAPI fill or cancellation can rewind either copy');
+  assert.equal(f.screen.style.visibility, '');
+  assert.equal(f.body.children.length, 2, 'incoming copy covers the live page paint ticks');
+  await f.paintFrame(2400);
+  assert.equal(f.body.children.length, 2);
+  await f.paintFrame(2500);
   assert.equal(f.screen.parentNode, parent);
-  f.animations.forEach(animation => animation.resolve());
   await pending;
-  assert.equal(f.animations[0].cancelOpacity, 0, 'outgoing copy stays invisible when fill is cancelled');
-  assert.equal(f.animations[1].cancelOpacity, 1);
-  assert.equal(f.animations[1].cancelTransform, 'none');
-  assert.ok(f.animations.every(animation => animation.cancelVisibility === 'hidden'));
+  assert.equal(outgoing.style.visibility, 'hidden', 'cleanup cannot expose the old copy');
+  assert.deepEqual(Array.from(state.samples, sample => sample.point), ['start', 'middle', 'final']);
+  assert.equal(state.samples.at(-1).outgoing.opacity, '0');
+  assert.equal(state.samples.at(-1).incoming.opacity, '1');
+  assert.equal(state.samples.at(-1).incoming.transform, 'none');
   assert.equal(f.body.children.length, 0);
   assert.equal(f.screen.style.visibility, '');
   assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'released');
@@ -538,16 +587,13 @@ test('real host completes all six Grow/fade routes with one commit each and no n
   f.refresh.resolve(true); f.forecast.resolve(); f.completion.resolve(); f.image.resolve();
   const routes = ['weather', 'news', 'clock', 'weather', 'news', 'clock'];
   for (const [index, target] of routes.entries()) {
-    const start = f.animations.length;
     const pending = f.window.ACPSurfaceHost.navigate(target, { history: false,
       source: index < 3 ? 'webkit-read-only-surface-trial' : 'navigation-link' });
     await flush();
     assert.equal(f.window.ACPSurfaceHost.isTransitioning(), true);
-    assert.equal(f.animations.length - start, 2);
-    f.animations.slice(start).forEach(animation => {
-      assert.equal(animation.timing.duration, 2000); animation.resolve();
-    });
+    await f.finishFrames();
     assert.equal((await pending).accepted, true);
+    assert.equal(f.animations.length, 0);
     assert.equal(f.window.ACPSurfaceHost.activeSurface(), target);
     assert.equal(f.window.__acpWebkitPageCopiesApplied, index + 1);
     assert.equal(f.window.__acpWebkitPageCopiesLast.to, target);
@@ -579,22 +625,40 @@ test('Grow/fade obeys short, long, zero and reduced-motion duration budgets', as
     const pending = prepared.copyCommit({ commit: async () => {} });
     await flush();
     const expected = reduced ? 0 : duration;
-    assert.equal(f.animations.length, expected ? 2 : 0);
-    f.animations.forEach(animation => {
-      assert.equal(animation.timing.duration, expected); animation.resolve();
-    });
+    await f.finishFrames();
     await pending;
-    assert.equal(f.window.__acpWebkitPageCopiesLast.durationMs, expected);
+    const state = f.window.__acpWebkitPageCopiesLast;
+    assert.equal(state.durationMs, expected);
+    assert.equal(f.animations.length, 0);
+    assert.ok(state.elapsedMs >= expected && state.elapsedMs < expected + 40);
+    assert.equal(state.frames > 0, expected > 0);
+    assert.equal(state.samples.at(-1).incoming.opacity, '1');
     assert.equal(f.body.children.length, 0);
   }
 });
 
-test('Grow/fade preparation and final handoff failures free both copies and prior visibility', async () => {
-  for (const failure of ['commit', 'handoff']) {
-    const f = fixture({ growCopies: true, style: 'grow-fade', duration: 0 });
+test('Grow/fade reports unsupported layout zoom and cleans up instead of claiming a completed fade', async () => {
+  const f = fixture({ growCopies: true, style: 'grow-fade' });
+  f.window.CSS = { supports: () => false };
+  const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
+  const pending = prepared.copyCommit({ commit: async () => {} });
+  const rejected = assert.rejects(pending, /CSS zoom/);
+  await f.finishFrames(); await rejected;
+  assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'failed');
+  assert.match(f.window.__acpWebkitPageCopiesLast.error, /CSS zoom/);
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.screen.style.visibility, '');
+});
+
+test('Grow/fade preparation, frame-loop and final handoff failures free copies and prior visibility', async () => {
+  for (const failure of ['commit', 'frame-loop', 'handoff']) {
+    const f = fixture({ growCopies: true, style: 'grow-fade', duration: failure === 'frame-loop' ? 2000 : 0 });
     f.screen.style.visibility = 'visible';
     let ticks = 0;
-    f.context.nextFrame = async () => { if (++ticks === 3) throw new Error('handoff'); };
+    f.context.nextFrame = async () => {
+      if (++ticks === (failure === 'frame-loop' ? 4 : 3)) throw new Error(failure);
+      return ticks * 100;
+    };
     const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
     await assert.rejects(prepared.copyCommit({ commit: async () => {
       if (failure === 'commit') throw new Error('commit');

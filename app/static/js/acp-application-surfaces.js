@@ -686,7 +686,7 @@
     });
     mask.appendChild(layer);
     return {
-      mask,
+      mask, layer,
       restoreScroll() {
         // cloneNode does not copy scroll offsets. Apply them after insertion
         // and layout, without scrolling or reparenting the actual live page.
@@ -700,6 +700,74 @@
         });
       },
     };
+  }
+
+  async function animateGrowFadeCopies(outgoing, incoming, width, height, duration, state) {
+    // F10 isolated a similar rewind by removing animated transforms and WAAPI
+    // fill/cancellation. Keep this comparison local to Grow/fade: zoom changes
+    // only the copy's layout size; an unzoomed frame supplies its centre/drift.
+    if (window.CSS?.supports?.('zoom', '0.976') === false) {
+      throw new Error('Grow/fade layout copies require CSS zoom');
+    }
+    const framed = [outgoing, incoming].map((presentation) => {
+      const frame = document.createElement('div');
+      Object.assign(frame.style, {
+        position: 'absolute', left: '0px', top: '0px',
+        width: `${width}px`, height: `${height}px`,
+      });
+      presentation.mask.appendChild(frame);
+      frame.appendChild(presentation.layer);
+      presentation.layer.style.setProperty('transform', 'none', 'important');
+      return { ...presentation, frame };
+    });
+    const place = ({ mask, layer, frame }, scale, drift, opacity) => {
+      frame.style.left = `${width * (1 - scale) / 2}px`;
+      frame.style.top = `${height * (1 - scale) / 2 + drift}px`;
+      layer.style.setProperty('zoom', String(scale), 'important');
+      mask.style.opacity = String(opacity);
+    };
+    const present = (progress) => {
+      place(framed[0], 1 - .015 * progress, -7 * progress, 1 - progress);
+      place(framed[1], .976 + .024 * progress, 10 * (1 - progress), progress);
+    };
+    const sample = (point) => {
+      const read = ({ mask, layer, frame }) => ({
+        opacity: window.getComputedStyle(mask).opacity,
+        zoom: window.getComputedStyle(layer).zoom,
+        transform: window.getComputedStyle(layer).transform,
+        left: frame.style.left, top: frame.style.top,
+      });
+      state.samples.push({ point, outgoing: read(framed[0]), incoming: read(framed[1]) });
+    };
+    Object.assign(state, {
+      renderer: 'frame-layout', frames: 0, elapsedMs: 0, maxFrameGapMs: 0, samples: [],
+    });
+    present(duration > 0 ? 0 : 1);
+    sample(duration > 0 ? 'start' : 'final');
+    if (duration > 0) {
+      const started = await nextFrame();
+      let previous = started;
+      let now = started;
+      let sampledMiddle = false;
+      while (true) {
+        const fraction = Math.min(1, (now - started) / duration);
+        present(frameStripProgress(fraction));
+        state.frames += 1;
+        state.maxFrameGapMs = Math.max(state.maxFrameGapMs, now - previous);
+        if (fraction >= 1) break;
+        if (!sampledMiddle && fraction >= .5) {
+          sample('middle');
+          sampledMiddle = true;
+        }
+        previous = now;
+        now = await nextFrame();
+      }
+      state.elapsedMs = Math.round(now - started);
+      sample('final');
+    }
+    // Retire the source irreversibly before the real destination is exposed.
+    // There is no filled effect to cancel or starting style to restore.
+    outgoing.mask.style.visibility = 'hidden';
   }
 
   async function preparedPageCopyCommit(from, to, style, commit) {
@@ -748,38 +816,42 @@
       state.preparationMs = Math.round(performance.now() - started);
       state.phase = 'animating';
 
-      const frames = cover ? null : ordinaryTransitionFrames(style);
-      const outgoingFrames = cover ? [
-        { width: `${width}px`, opacity: 1, borderRadius: '0px' },
-        { width: '0px', opacity: .15, borderRadius: '22px' },
-      ] : frames.outgoing;
-      const incomingFrames = cover ? [
-        { width: '0px', opacity: .65, borderRadius: '22px' },
-        { width: `${width}px`, opacity: 1, borderRadius: '0px' },
-      ] : frames.incoming;
-      // Underlying styles are the FINAL state. Cancelling a filled animation
-      // must never uncover a clipped starting frame during the live handoff.
-      Object.assign(outgoing.mask.style, outgoingFrames[1]);
-      Object.assign(incoming.mask.style, incomingFrames[1]);
-      if (duration > 0) {
-        const timing = { duration, easing: 'cubic-bezier(.16, .84, .24, 1)', fill: 'both' };
-        const completions = [];
-        for (const [mask, frames] of [[outgoing.mask, outgoingFrames], [incoming.mask, incomingFrames]]) {
-          const animation = mask.animate(frames, timing);
-          animations.push(animation);
-          // Observe cancellation immediately, including when starting the
-          // second effect throws before we reach the combined completion wait.
-          completions.push(animation.finished.catch(() => undefined));
+      if (!cover) {
+        await animateGrowFadeCopies(outgoing, incoming, width, height, duration, state);
+      } else {
+        const outgoingFrames = [
+          { width: `${width}px`, opacity: 1, borderRadius: '0px' },
+          { width: '0px', opacity: .15, borderRadius: '22px' },
+        ];
+        const incomingFrames = [
+          { width: '0px', opacity: .65, borderRadius: '22px' },
+          { width: `${width}px`, opacity: 1, borderRadius: '0px' },
+        ];
+        // Underlying styles are the FINAL state. Cancelling a filled animation
+        // must never uncover a clipped starting frame during the live handoff.
+        Object.assign(outgoing.mask.style, outgoingFrames[1]);
+        Object.assign(incoming.mask.style, incomingFrames[1]);
+        if (duration > 0) {
+          const timing = { duration, easing: 'cubic-bezier(.16, .84, .24, 1)', fill: 'both' };
+          const completions = [];
+          for (const [mask, frames] of [[outgoing.mask, outgoingFrames], [incoming.mask, incomingFrames]]) {
+            const animation = mask.animate(frames, timing);
+            animations.push(animation);
+            // Observe cancellation immediately, including when starting the
+            // second effect throws before we reach the combined completion wait.
+            completions.push(animation.finished.catch(() => undefined));
+          }
+          const startTime = document.timeline?.currentTime;
+          if (Number.isFinite(startTime)) {
+            animations.forEach((animation) => { animation.startTime = startTime; });
+          }
+          await Promise.all(completions);
         }
-        const startTime = document.timeline?.currentTime;
-        if (Number.isFinite(startTime)) {
-          animations.forEach((animation) => { animation.startTime = startTime; });
-        }
-        await Promise.all(completions);
+        cancelAnimations();
       }
-      cancelAnimations();
       // Paint the real destination under the complete incoming presentation
       // before retiring either copy. The original main.screen never moves.
+      state.phase = 'handoff';
       screen.style.visibility = previousVisibility;
       screen.getBoundingClientRect();
       await nextFrame();
@@ -787,6 +859,7 @@
       state.phase = 'released';
     } catch (error) {
       state.phase = 'failed';
+      state.error = String(error?.message || error);
       throw error;
     } finally {
       cancelAnimations();

@@ -312,7 +312,11 @@ test('News geometry sampling is passive, excludes the source copy and caps card 
   f.window.ACPNavPointerFeedback = { status: () => ({ open: true, armed: false, hovered: null }) };
   f.window.__acpWebkitGrowFadeCopyTrial = true;
   f.window.__acpWebkitPageCopiesApplied = 6;
-  f.window.__acpWebkitPageCopiesLast = { from: 'news', to: 'clock', style: 'grow-fade', phase: 'released', durationMs: 2000 };
+  f.window.__acpWebkitPageCopiesLast = { from: 'news', to: 'clock', style: 'grow-fade',
+    phase: 'released', durationMs: 2000, renderer: 'frame-layout', elapsedMs: 2011,
+    frames: 28, maxFrameGapMs: 100, samples: [
+      { point: 'final', outgoing: { opacity: '0' }, incoming: { opacity: '1', zoom: '1', transform: 'none' } },
+    ] };
   const actual = JSON.parse(vm.runInContext(metrics, f.context));
   assert.equal(actual.newsLayerTrial, true);
   assert.equal(actual.newsLiveCoverTrial, true);
@@ -323,6 +327,11 @@ test('News geometry sampling is passive, excludes the source copy and caps card 
   assert.equal(actual.pageCopiesTrial, true);
   assert.equal(actual.pageCopiesApplied, 6);
   assert.equal(actual.pageCopies.phase, 'released');
+  assert.equal(actual.pageCopies.renderer, 'frame-layout');
+  assert.equal(actual.pageCopies.elapsedMs, 2011);
+  assert.equal(actual.pageCopies.frames, 28);
+  assert.equal(actual.pageCopies.maxFrameGapMs, 100);
+  assert.equal(actual.pageCopies.samples[0].incoming.zoom, '1');
   assert.equal(actual.pageCopyCount, 0);
   assert.equal(actual.newsLayout.transform, 'matrix(1, 0, 0, 1, 0, 0)');
   assert.equal(actual.newsLayout.cards.length, 3);

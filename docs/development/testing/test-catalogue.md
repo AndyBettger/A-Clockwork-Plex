@@ -1,5 +1,17 @@
 
+## 18 November 2026 — Grow/fade copy retest FAIL; frame-layout comparison pending
+
+**Pi at `4bfce12a`, GF-002:** matching 01:05:34 video (**51.83s, nominal 59.94fps capture**) and 01:06:40 output. Six keyboard/drawer routes complete with **6 changed/settled, 6 released copies, zero native transitions/rejections or retained copies**. Settings/effective/root CSS match Grow/fade **page 2000ms / drawer open-close 1000ms**. Weather 53/59ms and News 412/88ms content waits settle; copy preparation 314–765ms. User reports transitions still incorrect; frame review shows Weather ghosting over News around 17.4s at copy retirement. **Visual FAIL**, even though native capture is bypassed. Baseline implementation CI: **1667 tests, 3 skips PASS**. No exact engine-internal diagnosis or extra content delay is justified.
+
+**Staged GF-003:** only configured Grow/fade switches to rAF-driven copy opacity, CSS zoom and layout positioning with the existing easing/duration. No Grow/fade WAAPI effect, fill/cancellation or animated transform remains. Explicitly hide the source and paint the real destination under the opaque final copy before removal. News Cover width masks and accepted F10/F11 remain unchanged. Diagnostics add `renderer:'frame-layout'`, measured callback elapsed/count/max-gap and bounded computed start/middle/final state samples; callback count is not display FPS.
+
+**Local checks:** **31 host + 36 probe PASS**, **37 executed lifecycle Node cases** plus existing Spatial/pointer and twelve profile/telemetry cases. Controlled timestamps check progression/budget rather than instant promise completion; real-host routes, final covered handoff, scroll/main identity, zero/reduced motion, unsupported zoom and interrupted frame-loop cleanup are exercised. [CSV attempt log](webkit-transition-results.csv) preserves GF-001/GF-002 FAIL and adds GF-003 AWAITING RETEST; eight other styles remain NOT TESTED at 2000/1000ms. Changed JS/Python syntax and **14 documentation checks PASS**; CSV inspection/render/round-trip verifies the attempt counts and unchanged baseline. Full CI gates publication. Local headless rendering is blocked by browser socket restrictions, so no local pixel pass is claimed.
+
+**Next check:** [same configured command](webkit-transition-settings.md), pull/restart once, only six Grow/fade keyboard/drawer routes at 2000/1000ms. Expect six released frame-layout transitions, measured elapsed at least 2000ms, start/final opacity/zoom endpoints, no native transition or retained mask. Review scale/alignment, stutter and source return during/after handoff. GF-003 is pending actual Pi evidence; stop the matrix on any recurrence.
+
 ## 13 November 2026 — Grow/fade visual FAIL at 2000/1000ms; copy retest pending
+
+Superseded by the 18 November result above; retained as implementation/test history.
 
 **Round-1 authority:** all nine styles at **page 2000ms / drawer open-close 1000ms**; quicker values follow only after all pass. [CSV attempt log](webkit-transition-results.csv) preserves GF-001 FAIL, GF-002 AWAITING RETEST and eight NOT TESTED rows, source filenames and blank unmeasured values. Earlier Cover acceptance is separate from this standardized round.
 
