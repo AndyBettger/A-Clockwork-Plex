@@ -539,17 +539,18 @@ test('Grow/fade advances on frame timestamps and retains the final copy through 
   assert.ok(f.body.children.every(mask => mask.className === 'acp-webkit-page-copy-viewport'));
   const [outgoing, incoming] = f.body.children;
   const state = f.window.__acpWebkitPageCopiesLast;
-  assert.equal(state.renderer, 'frame-layout');
+  assert.equal(state.renderer, 'frame-transform');
   assert.equal(outgoing.style.opacity, '1'); assert.equal(incoming.style.opacity, '0');
-  assert.equal(f.guards[1].style.zoom, '0.976');
-  assert.ok(Math.abs(parseFloat(incoming.children[0].style.left) - 10.236) < .001);
-  assert.ok(Math.abs(parseFloat(incoming.children[0].style.top) - 15.76) < .001);
+  assert.equal(outgoing.style.transform, 'translateY(0px) scale(1)');
+  assert.equal(incoming.style.transform, 'translateY(10px) scale(0.976)');
+  assert.equal(incoming.style.transformOrigin, '50% 50%');
   assert.ok(f.guards.every(layer => layer.scroller.scrollTop === 120));
   await f.paintFrame(300); // motion starts after preparation, not at request time
   await f.paintFrame(1300);
   const middle = Number(incoming.style.opacity);
   assert.ok(middle > .5 && middle < 1, 'baseline easing is applied to elapsed clock time');
   assert.equal(outgoing.style.opacity, String(1 - middle));
+  assert.equal(incoming.style.transform, `translateY(${10 * (1 - middle)}px) scale(${.976 + .024 * middle})`);
   assert.equal(f.screen.style.visibility, 'hidden');
   await f.paintFrame(2300);
   assert.equal(state.phase, 'handoff');
@@ -558,9 +559,9 @@ test('Grow/fade advances on frame timestamps and retains the final copy through 
   assert.equal(state.maxFrameGapMs, 1000, 'scheduling gaps are reported, not called display FPS');
   assert.equal(outgoing.style.opacity, '0');
   assert.equal(outgoing.style.visibility, 'hidden');
-  assert.equal(incoming.style.opacity, '1'); assert.equal(f.guards[1].style.zoom, '1');
-  assert.equal(incoming.children[0].style.left, '0px');
-  assert.equal(incoming.children[0].style.top, '0px');
+  assert.equal(incoming.style.opacity, '1');
+  assert.equal(incoming.style.transform, 'translateY(0px) scale(1)');
+  assert.equal(outgoing.style.transform, 'translateY(-7px) scale(0.985)');
   assert.equal(f.animations.length, 0, 'no WAAPI fill or cancellation can rewind either copy');
   assert.equal(f.screen.style.visibility, '');
   assert.equal(f.body.children.length, 2, 'incoming copy covers the live page paint ticks');
@@ -573,7 +574,7 @@ test('Grow/fade advances on frame timestamps and retains the final copy through 
   assert.deepEqual(Array.from(state.samples, sample => sample.point), ['start', 'middle', 'final']);
   assert.equal(state.samples.at(-1).outgoing.opacity, '0');
   assert.equal(state.samples.at(-1).incoming.opacity, '1');
-  assert.equal(state.samples.at(-1).incoming.transform, 'none');
+  assert.equal(state.samples.at(-1).incoming.transform, incoming.style.transform);
   assert.equal(f.body.children.length, 0);
   assert.equal(f.screen.style.visibility, '');
   assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'released');
@@ -637,17 +638,33 @@ test('Grow/fade obeys short, long, zero and reduced-motion duration budgets', as
   }
 });
 
-test('Grow/fade reports unsupported layout zoom and cleans up instead of claiming a completed fade', async () => {
+test('Grow/fade keeps copy layout fixed during motion and preserves the scrolled content', async () => {
   const f = fixture({ growCopies: true, style: 'grow-fade' });
-  f.window.CSS = { supports: () => false };
+  f.scroller.scrollTop = 120;
   const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
-  const pending = prepared.copyCommit({ commit: async () => {} });
-  const rejected = assert.rejects(pending, /CSS zoom/);
-  await f.finishFrames(); await rejected;
-  assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'failed');
-  assert.match(f.window.__acpWebkitPageCopiesLast.error, /CSS zoom/);
-  assert.equal(f.body.children.length, 0);
-  assert.equal(f.screen.style.visibility, '');
+  const pending = prepared.copyCommit({ commit: async () => { f.scroller.scrollTop = 35; } });
+  await flush();
+  await f.paintFrame(16);
+  await f.paintFrame(32);
+  const layoutWrites = new Set();
+  function watchLayout(node) {
+    node.style = new Proxy(node.style, {
+      set(style, key, value) {
+        if (['zoom', 'left', 'top', 'width', 'height'].includes(key) && style[key] !== value) {
+          layoutWrites.add(key);
+        }
+        return Reflect.set(style, key, value);
+      },
+    });
+    node.children.forEach(watchLayout);
+  }
+  f.body.children.forEach(watchLayout);
+  await f.finishFrames(125);
+  await pending;
+  assert.deepEqual([...layoutWrites], [], 'layout-changing writes in the animation loop');
+  assert.deepEqual(f.guards.map(layer => layer.scroller.scrollTop), [120, 35]);
+  assert.equal(f.scroller.scrollTop, 35);
+  assert.equal(f.window.__acpWebkitPageCopiesLast.phase, 'released');
 });
 
 test('Grow/fade preparation, frame-loop and final handoff failures free copies and prior visibility', async () => {

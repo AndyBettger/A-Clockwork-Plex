@@ -702,67 +702,54 @@
     };
   }
 
-  async function animateGrowFadeCopies(outgoing, incoming, width, height, duration, state) {
-    // F10 isolated a similar rewind by removing animated transforms and WAAPI
-    // fill/cancellation. Keep this comparison local to Grow/fade: zoom changes
-    // only the copy's layout size; an unzoomed frame supplies its centre/drift.
-    if (window.CSS?.supports?.('zoom', '0.976') === false) {
-      throw new Error('Grow/fade layout copies require CSS zoom');
+  async function animateGrowFadeCopies(outgoing, incoming, duration, state) {
+    // Lay out and scroll each copy once. Move its viewport as a unit so the
+    // forecast cards and News text keep their layout throughout the fade.
+    for (const { mask, layer } of [outgoing, incoming]) {
+      layer.style.setProperty('transform', 'none', 'important');
+      Object.assign(mask.style, { transformOrigin: '50% 50%', willChange: 'transform, opacity' });
     }
-    const framed = [outgoing, incoming].map((presentation) => {
-      const frame = document.createElement('div');
-      Object.assign(frame.style, {
-        position: 'absolute', left: '0px', top: '0px',
-        width: `${width}px`, height: `${height}px`,
-      });
-      presentation.mask.appendChild(frame);
-      frame.appendChild(presentation.layer);
-      presentation.layer.style.setProperty('transform', 'none', 'important');
-      return { ...presentation, frame };
-    });
-    const place = ({ mask, layer, frame }, scale, drift, opacity) => {
-      frame.style.left = `${width * (1 - scale) / 2}px`;
-      frame.style.top = `${height * (1 - scale) / 2 + drift}px`;
-      layer.style.setProperty('zoom', String(scale), 'important');
+    const place = (mask, scale, drift, opacity) => {
+      mask.style.transform = `translateY(${drift}px) scale(${scale})`;
       mask.style.opacity = String(opacity);
     };
     const present = (progress) => {
-      place(framed[0], 1 - .015 * progress, -7 * progress, 1 - progress);
-      place(framed[1], .976 + .024 * progress, 10 * (1 - progress), progress);
+      place(outgoing.mask, 1 - .015 * progress, -7 * progress, 1 - progress);
+      place(incoming.mask, .976 + .024 * progress, 10 * (1 - progress), progress);
     };
     const sample = (point) => {
-      const read = ({ mask, layer, frame }) => ({
-        opacity: window.getComputedStyle(mask).opacity,
-        zoom: window.getComputedStyle(layer).zoom,
-        transform: window.getComputedStyle(layer).transform,
-        left: frame.style.left, top: frame.style.top,
-      });
-      state.samples.push({ point, outgoing: read(framed[0]), incoming: read(framed[1]) });
+      const read = (mask) => {
+        const computed = window.getComputedStyle(mask);
+        return { opacity: computed.opacity, transform: computed.transform };
+      };
+      state.samples.push({ point, outgoing: read(outgoing.mask), incoming: read(incoming.mask) });
     };
     Object.assign(state, {
-      renderer: 'frame-layout', frames: 0, elapsedMs: 0, maxFrameGapMs: 0, samples: [],
+      renderer: 'frame-transform', frames: 0, elapsedMs: 0, maxFrameGapMs: 0, samples: [],
     });
     present(duration > 0 ? 0 : 1);
     sample(duration > 0 ? 'start' : 'final');
     if (duration > 0) {
       const started = await nextFrame();
       let previous = started;
-      let now = started;
+      state.frames = 1;
       let sampledMiddle = false;
       while (true) {
+        const now = await nextFrame();
         const fraction = Math.min(1, (now - started) / duration);
         present(frameStripProgress(fraction));
         state.frames += 1;
         state.maxFrameGapMs = Math.max(state.maxFrameGapMs, now - previous);
-        if (fraction >= 1) break;
+        if (fraction >= 1) {
+          state.elapsedMs = Math.round(now - started);
+          break;
+        }
         if (!sampledMiddle && fraction >= .5) {
           sample('middle');
           sampledMiddle = true;
         }
         previous = now;
-        now = await nextFrame();
       }
-      state.elapsedMs = Math.round(now - started);
       sample('final');
     }
     // Retire the source irreversibly before the real destination is exposed.
@@ -817,7 +804,7 @@
       state.phase = 'animating';
 
       if (!cover) {
-        await animateGrowFadeCopies(outgoing, incoming, width, height, duration, state);
+        await animateGrowFadeCopies(outgoing, incoming, duration, state);
       } else {
         const outgoingFrames = [
           { width: `${width}px`, opacity: 1, borderRadius: '0px' },

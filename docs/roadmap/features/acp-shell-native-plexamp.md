@@ -5,6 +5,16 @@
 **Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
 
 
+## 18 November 2026 — Grow/fade handoff passes on the Pi, motion still stutters
+
+**GF-003 on `d5883158`.** The operator reports that the old page stayed gone with both inputs. The recording shows a stepped fade on both Weather → News entries, around 20–22s and 42–44s. News remains visible after each fade. All six `frame-layout` transitions released, with zero retained copies, native transitions or route failures. Saved and effective Grow/fade settings matched the CSS at **2000ms page / 1000ms drawer open-close**.
+
+Weather → News received only **seven animation callbacks** on each entry. The longest gaps were **504ms by keyboard** and **478ms by drawer**. The other four routes received ten callbacks each. Preparation and content readiness completed before these measurements. Record a handoff pass and a motion failure for GF-003. [Measurements for all six routes](../../development/testing/test-catalogue.md#18-november-2026--growfade-frame-timings-on-the-pi)
+
+**GF-004 awaiting Pi retest.** Each GF-003 frame changed the CSS zoom of two page trees and repositioned their containers. That repeated layout work is a plausible contributor to the pauses. The new preview scales, translates and fades the two outer viewports using only `transform` and `opacity` during motion. It keeps the frame clock, easing, saved duration and the source-hide sequence that passed. The opaque incoming copy stays at its final transform while the real page paints underneath. A regression check detects the three layout-changing writes on GF-003 and passes on GF-004.
+
+Repeat the six Grow/fade routes at **2000/1000ms**. Compare callback counts, largest gaps and the recording for each input, especially Weather → News. Check the old page stays gone and the News text and cards line up throughout the fade. The remaining eight styles are pending this comparison. [Pi procedure](../../development/testing/webkit-transition-settings.md) · [CSV](../../development/testing/webkit-transition-results.csv)
+
 ## 18 November 2026 — Grow/fade DOM-copy retest FAIL; frame-layout candidate staged
 
 **GF-002 evidence at `4bfce12a`:** `Pasted text(20261118-010640).txt` and `WayVNC - TigerVNC 2026-11-18 01-05-34.mp4` (**51.83s, 1600×900, nominal 59.94fps capture**). WebKitGTK 2.54.0, forced SHM, 853×480 viewport. Six routes through keys/drawer complete, **6 changed/settled**, **6 copy transitions**, last released at 2000ms, zero remaining copies and **zero native transitions/rejections**. Saved/effective/CSS style and page/nav timings match **grow-fade / 2000 / 1000ms**. Weather waits 53/59ms and News waits 412/88ms all settle; preparation takes 314–765ms. The copy candidate ran, so this result cannot be attributed to native View Transition snapshots or a Settings mismatch. Source Weather visibly ghosts over already-present News around **17.4s** as the copies retire; the operator reports broken transitions through both inputs. GF-002 is **FAIL**, alongside GF-001. No precise WebKit internal cause is established.

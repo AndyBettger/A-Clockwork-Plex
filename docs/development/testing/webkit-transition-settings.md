@@ -8,11 +8,11 @@ Issue #94, development Pi only. This checks saved Settings against the ephemeral
 
 [Results CSV](webkit-transition-results.csv) is the maintained attempt log: one row per style/attempt, with timings, Settings/API evidence, visual result, next action and attachment names. Preserve failed attempts when appending retests. Blank measurements mean no result, not zero or PASS. Earlier preview acceptance is separate from this standardized round.
 
-**Stopped at Grow and fade:** GF-001 (`19f05517`, native snapshots) and GF-002 (`4bfce12a`, DOM copies with Web Animations) both visually FAIL despite matching 2000/1000ms Settings. The second run completes all six copies with zero native transitions, yet Weather ghosts over News at copy retirement. GF-003 awaits Pi retest of frame-driven layout copies. Keep all other styles NOT TESTED until this correction passes; do not continue the matrix through an unresolved flash.
+**Current test is GF-004, Grow and fade.** GF-001 and GF-002 flashed the outgoing page at completion. GF-003 (`d5883158`) cleared the flash on all six routes and exposed a smoothness problem. Weather → News received seven frame callbacks and paused for up to 504ms by keyboard and 478ms by drawer. Use those results to compare GF-004 at the same timings. The other eight styles await their first Round 1 run. [GF-003 route measurements](test-catalogue.md#18-november-2026--growfade-frame-timings-on-the-pi)
 
 ## Start the Settings-driven preview
 
-Pull and restart ACP once for the updated host/application assets. Subsequent setting changes need no service restart. In the **normal ACP window**, open **Settings → Display → Motion**, choose **Grow and fade** for the immediate retest, retain **page transition 2000ms / navigation transition 1000ms**, and Save. The preview still refuses Settings POSTs; do not save through its Settings page.
+Pull and restart ACP once to load the updated application script. If you kept the settings from GF-003, launch the preview directly after restarting. To change them, save **Grow and fade**, **page transition 2000ms** and **navigation transition 1000ms** under **Settings → Display → Motion** in the normal ACP window.
 
 ```bash
 cd ~/A-Clockwork-Plex
@@ -31,7 +31,7 @@ env -u WEBKIT_DISABLE_DMABUF_RENDERER \
   --seconds 300 --width 853 --height 480 --fullscreen
 ```
 
-The configured profile preserves the saved style and both timings. It enables accepted F11 navigation, F10 for actual Spatial routes, covered content preparation and News copies **only when Cover Reveal is selected**. Grow and fade now uses frame-driven copy opacity/layout zoom/position, preserving its small scale/drift, easing and configured duration. Its source is hidden before the live handoff; it starts no native transition or Web Animation. Other styles retain their previous renderer. Do not add the forced-Cover readiness/layer flags to this command. No new backend write capability is enabled.
+The configured profile reads the saved style and both timings. It enables F11 navigation, F10 for Spatial routes, covered content preparation and News copies for Cover Reveal. For Grow and fade, GF-004 uses each frame timestamp to set the opacity and centred transform of the source and destination viewports. Each page keeps its layout and scroll position. The renderer hides the old page before the live destination takes over.
 
 Leave F6/F7/F10/F11 untouched during this matrix so the accepted comparison settings stay consistent.
 
@@ -53,7 +53,9 @@ For each row, save the style, press F8, then run **F2 → F3 → F1** and **draw
 | Spatial row (prototype) | `spatial-row` | Clock↔News traverses Weather; configured duration covers the whole movement |
 | Instant | `none` | No timed page animation; a stored page duration does not enable one |
 
-For the immediate **GF-003** six-route Grow/fade retest, expect **6 changed/settled**, **pageCopiesApplied=6**, renderer **`frame-layout`**, final style `grow-fade`, phase `released`, budget **2000ms**, **pageCopyCount=0**, and **zero native transitions**. Measured `elapsedMs` should reach the budget; callback count/max gap record scheduling rather than display FPS. Start/final samples should show incoming opacity **0→1**, zoom **.976→1**, outgoing opacity **1→0**, and copy transforms **none**. The changed/settled events occur after awaited motion, so their short delta does not mean the animation ran instantly. Watch scale/alignment throughout, the last part of each fade and the following second for any old-page return or jerk.
+For **GF-004**, run **F2 → F3 → F1**, then **drawer Weather → News → Home**. Let each page settle and watch for one more second. Check whether the grow and fade look smooth, especially on both News entries, and whether the old page stays gone. Keep the output and recording together.
+
+Expect six changed/settled routes, six uses of **`frame-transform`**, final phase `released`, page budget 2000ms, zero native transitions and zero remaining copies at rest. Compare each released `frames`, `maxFrameGapMs` and `elapsedMs` with the same GF-003 route. Larger callback counts and shorter gaps would support a visible improvement. Record the visual result from the Pi.
 
 For later normal day-renderer tests: the remaining ordinary styles use **6 native transitions**, Cover **4 native + 2 News copy reveals**, Spatial **6 frame-strip movements**, Instant **no native/copy/strip animation**. No retained guard/mask/strip at rest. Record `astronomyNightActive` and actual renderer: the existing Astronomy Red live-DOM path can legitimately replace native capture. Native promise failures, incomplete content waits, incorrect style/duration, visual artifacts or missing route completion are not passes.
 
@@ -69,7 +71,8 @@ Page and drawer timing must vary independently. Total request time includes prep
 - `cssPageDuration` / `cssNavigationDuration` expose the actual root CSS timing variables; `navChrome` includes computed drawer/handle transition durations. Page values normalize in 50ms steps, navigation in 20ms steps, retaining zero.
 - `nativeTransitions.lastPresentation` reports the style/requested duration/CSS value at capture and samples available `acp-in-*` / `acp-out-*` animation timings once at native readiness. `not-exposed` / `unavailable` explicitly means no effect-level timing evidence, not a fabricated success. `coverReveal` remains a compatibility alias for these native counters in configured mode.
 - `newsLiveCover.durationMs` and `frameStripLast.durationMs` report the copy/Spatial renderer's actual configured animation budget. `prefersReducedMotion` records the system preference; note any legitimate reduced-motion override.
-- `pageCopies` reports Grow/fade's from/to/style, phase, preparation time and configured budget. The GF-003 candidate adds `renderer:'frame-layout'`, `frames`, `elapsedMs`, `maxFrameGapMs` and bounded computed state `samples` (start/middle/final; a zero/reduced-motion run needs only final). These are not pixel/FPS proof. `pageCopiesApplied`/`pageCopyCount` count use/remaining masks. No Grow/fade effect is cancelled; the source stays hidden while the real page paints under the final incoming copy. Unsupported layout zoom or a failed frame loop reports failed/error and still removes copies.
+- `pageCopies` reports Grow/fade's route, renderer, phase, preparation time, duration budget and frame-loop measurements. The GF-004 `samples` contain the two masks' computed opacity and transform at the start, near the middle when a callback is available, and at the end. Zero duration or reduced motion produces just a final sample. The incoming mask ends at opacity 1 and the identity transform, and the outgoing mask ends at opacity 0. `pageCopiesApplied` counts uses and `pageCopyCount` counts masks still attached.
+- The CSV's final four columns record whether the old page returned at completion, the fewest frame callbacks on any measured route, the longest gap between callbacks, and the longest measured frame loop. Enter measurements only for runs that expose them. Use the per-route table for keyboard/drawer comparisons.
 - F8 is an intentional document boundary. Ordinary F1–F5/drawer changes must remain same-document. Check completion/errors and video per style, rather than adding counters across F8 resets.
 
 Keep command output and a recording with the chosen styles/timings identified. Passing lifecycle tests does not close this Pi visual/timing gate or overall resource acceptance.

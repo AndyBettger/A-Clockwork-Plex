@@ -1,4 +1,21 @@
 
+## 18 November 2026 — Grow/fade frame timings on the Pi
+
+**GF-003 on `d5883158`.** The 01:34:23 output and 01:33:05 WayVNC recording (60.79s) cover WebKitGTK 2.54.0, forced SHM and the 853×480 fullscreen preview. Six routes changed and settled, each using `frame-layout` with a 2000ms budget. Native transitions, route failures and retained copies all finished at zero. Saved/effective/CSS page and drawer timings matched 2000/1000ms. Weather readiness settled in 54/51ms and News in 81/113ms, in keyboard/drawer order.
+
+| Input | Route | Preparation (ms) | Frame-loop elapsed (ms) | Frame callbacks | Longest callback gap (ms) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| F2 | Clock → Weather | 628 | 2219 | 10 | 296 |
+| F3 | Weather → News | 399 | 2389 | 7 | 504 |
+| F1 | News → Clock | 389 | 2053 | 10 | 276 |
+| Drawer | Clock → Weather | 352 | 2107 | 10 | 281 |
+| Drawer | Weather → News | 417 | 2287 | 7 | 478 |
+| Drawer | News → Clock | 278 | 2060 | 10 | 317 |
+
+The frame clock starts after preparation. Each row uses the released sample for that route, counted once across repeated log lines. The operator saw the old-page flash disappear and found motion jerkier. The recording shows Weather holding briefly during both fades, followed by a jump towards News around 20.5s and 42.1s. The outgoing page stays gone at the handoff. The CSV records an overall visual FAIL for stutter and a separate false value for the old-page return. The callback measurements describe the animation loop.
+
+**GF-004 check.** The configured Grow/fade loop now moves each fixed-size copy with a centred transform and opacity. A controlled-frame regression check detects `zoom`, `left` and `top` writes on the GF-003 code and none during GF-004 motion. Tests also cover scroll offsets, frame gaps, source hiding, the covered live handoff and cleanup. The host and probe suites passed **31 and 36 checks**, including the lifecycle and telemetry cases. Use the same Pi command and six routes to assess visible motion, continuity and callback timing. [Procedure](webkit-transition-settings.md) · [Results CSV](webkit-transition-results.csv)
+
 ## 18 November 2026 — Grow/fade copy retest FAIL; frame-layout comparison pending
 
 **Pi at `4bfce12a`, GF-002:** matching 01:05:34 video (**51.83s, nominal 59.94fps capture**) and 01:06:40 output. Six keyboard/drawer routes complete with **6 changed/settled, 6 released copies, zero native transitions/rejections or retained copies**. Settings/effective/root CSS match Grow/fade **page 2000ms / drawer open-close 1000ms**. Weather 53/59ms and News 412/88ms content waits settle; copy preparation 314–765ms. User reports transitions still incorrect; frame review shows Weather ghosting over News around 17.4s at copy retirement. **Visual FAIL**, even though native capture is bypassed. Baseline implementation CI: **1667 tests, 3 skips PASS**. No exact engine-internal diagnosis or extra content delay is justified.
